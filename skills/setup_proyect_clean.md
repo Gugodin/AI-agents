@@ -1,40 +1,56 @@
-# Skill: Setup Proyecto Clean
+# Skill: Setup Proyecto Clean (v2.3)
 
 ## 🎯 Objetivo
-Inicializar un proyecto de Flutter desde cero siguiendo estrictamente el "molde" definido en el `BLUEPRINT.md`. Este skill automatiza la creación de la base arquitectónica para que el desarrollador pueda empezar directamente con la lógica de negocio.
+Inicializar la estructura completa, el Core Foundation y la configuración nativa de un proyecto Flutter. Este skill asegura un arranque profesional, flexible y libre de errores de inicialización tanto en Dart como en las capas nativas.
 
-## 🔗 Vinculación con Blueprint
-Para cada componente generado, el agente DEBE consultar los estándares de implementación en:
-- **Estructura de Carpetas**: Ver Sección 2 de `BLUEPRINT.md`.
-- **Manejo de Estados**: Ver Sección 3.1 (`DataState`) y 3.2 (`DataResult`).
-- **Casos de Uso**: Ver Sección 3.3 (`UseCase`).
-- **Red y Clientes**: Ver Sección 4 (`Network Layer`).
+## ⚡ Disparador Interactivo: "Inicializar Proyecto"
+Si el usuario solicita arrancar un proyecto nuevo, el agente DEBE responder solicitando estos datos:
 
-## ⚡ Comando de Activación: "Inicializar Proyecto"
-Cuando el usuario ejecute este comando, el agente debe realizar las siguientes tareas en orden:
+> "¡Excelente! Vamos a preparar la base de tu nuevo proyecto. Para que todo quede configurado correctamente, por favor indícame:
+> 
+> - **Nombre del Proyecto**: [ej: app_gestion (en snake_case para imports)]
+> - **Organización**: [ej: com.tuempresa (para el Bundle ID/Package Name)]
+> - **Entornos**: [¿Solo Prod o también QA/Direct?]
+> - **Módulos Core Opcionales**: [¿Deseas incluir Toastification, SharedPreferences, Biometría o Connectivity ahora mismo?]
+> 
+> Una vez recibidos, generaré el código Dart y las configuraciones nativas necesarias."
 
-### 1. Configuración de Entorno
-- Generar el archivo `pubspec.yaml` incluyendo todas las dependencias del stack tecnológico (Bloc, GetIt, Dio, Retrofit, Freezed, etc.).
-- Configurar el archivo `analysis_options.yaml` con reglas de linter estrictas.
+## 🏗️ Pasos de Ejecución
 
-### 2. Creación de la Estructura de Directorios
-- Crear el árbol de carpetas completo: `app/`, `config/`, `core/`, `features/`, `injector/` y `assets/`.
-- Generar todos los archivos **Barrel Exports** (`.dart`) iniciales para cada carpeta.
+### 1. Configuración de Entorno (pubspec.yaml)
+Generar el `pubspec.yaml` con el nombre del proyecto y las dependencias base (Bloc, GetIt, Dio, Retrofit, Freezed). Añadir los módulos opcionales seleccionados por el usuario.
 
-### 3. Implementación del Core Foundation
-- Escribir los archivos base en `lib/core/foundation/`:
-    - `DataState<T>` (Sealed class con Freezed).
-    - `DataStateFactory` (Lógica de mapeo de errores de red y generales).
-- Escribir las interfaces de `UseCase` y el alias `DataResult`.
+### 2. Ciclo de Vida Crítico (main.dart)
+Generar el `main.dart` con el orden de arranque obligatorio:
+1. `WidgetsFlutterBinding.ensureInitialized();`
+2. `await initializeDateFormatting();`
+3. `setupInjector();`
+4. `await getIt<SharedPreferenceHelper>().init();` (Si hay persistencia).
+5. `SystemChrome.setPreferredOrientations([...]);`
+6. `runApp(const App());`
 
-### 4. Capa de Red y Utilidades
-- Crear el `ApiClient` base (Dio) con los interceptores de Conectividad, Token y Logger.
-- Implementar el `ResponseModel` para el parseo genérico de respuestas.
+### 3. Estructura de Raíz (app/app.dart)
+Configurar el widget `App` incluyendo:
+- **ToastificationWrapper**: Envolviendo al `MaterialApp` (si se seleccionó el módulo).
+- **MediaQuery Clamp**: Implementar el `textScaler` con clamp (1.0 a 1.3).
+- **MultiBlocProvider**: Proveer BLoCs globales registrados en GetIt.
 
-### 5. Configuración de Inyección (DI)
-- Crear el archivo `lib/injector/injector.dart` con la función `setupInjector()` registrando los Singletons globales (Helpers, API Clients, EventBus).
+### 4. Core Foundation & Helpers
+- **DataState & Factory**: Sistema de estados y mapeo de errores `fromDioException`.
+- **SharedPreferenceHelper**: Base con soporte para **Mixins** por dominio.
+- **ApiClient**: Configuración de `Dio` con interceptores.
 
-## 📝 Reglas de Ejecución
-- **Nomenclatura**: Usar nombres genéricos (ej. `ApiClient` en lugar de nombres de empresas específicas).
-- **Consistencia**: No omitir ningún archivo mencionado en el Blueprint.
-- **Confirmación**: Al finalizar, mostrar un resumen de la estructura creada y los comandos de `build_runner` necesarios para generar el código inicial.
+### 5. Configuración Nativa (Android & iOS)
+Según los módulos opcionales elegidos, el agente debe proporcionar:
+- **Android**: 
+    - Permisos en `AndroidManifest.xml` (Internet, Biometrics, Location).
+    - Ajuste de `minSdkVersion` en `build.gradle`.
+    - Cambio a `FlutterFragmentActivity` en `MainActivity.kt` si se usa biometría.
+- **iOS**:
+    - Llaves de privacidad en `Info.plist` (Location, FaceID, etc.) con descripciones profesionales.
+    - Configuración de plataforma en el `Podfile`.
+
+## 📝 Reglas de Oro
+- **Consistencia de Imports**: Todos los archivos generados deben usar el **Nombre del Proyecto** proporcionado para los imports internos (`import 'package:nombre/...'`).
+- **Modularidad**: Tratar las configuraciones nativas como opcionales; solo generarlas si el paquete correspondiente está en el pubspec.
+- **Barrel Exports**: Mantener la convención de archivos `.dart` que re-exportan el contenido de sus carpetas.

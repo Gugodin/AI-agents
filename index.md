@@ -1,36 +1,36 @@
-# Index: AI Agents Standards & Skills
+# Index: AI Agents Standards & Skills (v2.0)
 
-Este repositorio centraliza los estándares de arquitectura y las habilidades operativas para el desarrollo de aplicaciones Flutter de Javier. El objetivo es proporcionar un contexto unificado para que cualquier Agente de IA pueda generar código coherente, profesional y escalable.
+Este repositorio centraliza los estándares de arquitectura Flutter y las habilidades operativas de Javier. Este ecosistema está diseñado para que cualquier Agente de IA genere código de nivel senior, siguiendo un flujo de trabajo profesional, modular y libre de errores de inicialización.
 
 ---
 
 ## 📚 Documentación Base (El "Saber")
 
-- **[Blueprint de Arquitectura](docs/BLUEPRINT.md)**: Es el estándar de oro y la fuente única de verdad. Define la estructura de carpetas, el stack tecnológico, el manejo de estados con `DataState`, y los patrones de inyección de dependencias.
+- **[Blueprint de Arquitectura](./BLUEPRINT.md)**: La fuente única de verdad. Define el stack tecnológico, el ciclo de vida crítico de la app, el manejo de estados granulares y los patrones de persistencia mediante Mixins.
 
 ---
 
-## 🛠️ Skills Disponibles (El "Hacer")
+## 🛠️ Skills Operativas (El "Hacer")
 
-Utiliza las siguientes habilidades según la tarea solicitada por el usuario:
+Utiliza estas habilidades según la tarea solicitada, respetando siempre las versiones v2.x:
 
-### 1. [Setup de Proyecto](skills/setup_proyect_clean.md)
+### 1. [Setup de Proyecto (v2.3)](./setup_project_clean.md)
 - **Comando**: "Inicializar Proyecto".
-- **Función**: Configura la base del proyecto (carpetas, dependencias y Core Foundation) vinculando cada componente a los ejemplos del Blueprint.
+- **Función**: Configura la base del proyecto (Dart + Nativo). Asegura el orden correcto en `main.dart`, la jerarquía del `ToastificationWrapper` y los permisos en Android/iOS.
 
-### 2. [Generador de Features](skills/feature_creator_skill.md)
+### 2. [Generador de Features (v2.2)](./feature_creator_skill.md)
 - **Comando**: "Generaré un feature" o "Generaremos un nuevo feature".
-- **Función**: Crea un módulo completo desde cero (Domain, Data, Presentation) siguiendo el checklist de calidad y las reglas de transformación de datos solicitadas.
+- **Función**: Crea módulos completos (Domain, Data, Presentation). Implementa mapeo de modelos con `toEntity()`, estados de BLoC granulares y preservación de datos para Skeletons.
 
-### 3. [Creador de Casos de Uso](skills/use_case_creator_skill.md)
+### 3. [Creador de Casos de Uso (v2.2)](./use_case_creator_skill.md)
 - **Comando**: "Generaré un caso de uso" o "Añadir nuevo caso de uso".
-- **Función**: Integra quirúrgicamente nuevas funcionalidades a un feature existente, actualizando el Repository, DataSource, Model y la inyección de dependencias.
+- **Función**: Integración quirúrgica de funcionalidades en features existentes. Actualiza Repositorios y DataSources (Retrofit) y gestiona la persistencia local mediante Mixins.
 
 ---
 
-## 🚦 Instrucciones para el Agente de IA
+## 🚦 Reglas de Oro para el Agente
 
-1. **Lectura Obligatoria**: Antes de realizar cualquier acción, debes leer el archivo `BLUEPRINT.md` para asimilar el uso de `DataState`, `DataResult`, `UseCase` y `DataStateFactory`.
-2. **Interactividad**: Si el usuario solicita un Feature o un Caso de Uso, DEBES responder con el diálogo de recolección de datos definido en la skill correspondiente para asegurar un resultado óptimo.
-3. **Manejo de Errores**: Nunca omitas el uso de las factorías de error en la capa de datos.
-4. **Clean Code**: Mantén siempre la flexibilidad en la lógica de negocio pero rigidez absoluta en la estructura arquitectónica.
+1. **Prioridad de Inicialización**: Nunca alteres el orden del `main.dart`; el `SharedPreferenceHelper` debe inicializarse antes del `runApp`.
+2. **Fidelidad y Transformación**: El mapeo estándar debe ser fiel al JSON de respuesta. Las transformaciones complejas solo se aplican si se detallan en "Observaciones".
+3. **Calidad Visual**: Los estados de BLoC deben permitir la preservación de datos para evitar pantallas en blanco durante cargas o errores.
+4. **Nomenclatura e Imports**: Usa siempre el **Nombre del Proyecto** proporcionado para generar los imports de paquete correctamente.

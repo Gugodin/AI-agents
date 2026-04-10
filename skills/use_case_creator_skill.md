@@ -1,41 +1,41 @@
-# Skill: Creador de Casos de Uso Quirúrgico
+# Skill: Creador de Casos de Uso Quirúrgico (v2.2)
 
 ## 🎯 Objetivo
-Añadir un nuevo caso de uso a un feature existente siguiendo estrictamente el flujo de Clean Architecture. Esta skill se encarga de actualizar todas las capas (Domain, Data y DI) para integrar la nueva funcionalidad de forma limpia.
+Añadir una nueva funcionalidad (caso de uso) a un feature existente. El agente debe actualizar todas las capas (Domain, Data y DI) de forma precisa, respetando el código previo y siguiendo los estándares de `BLUEPRINT.md`.
 
-## 🔗 Estándares de Implementación
-Al agregar un caso de uso, el agente debe basarse en el `BLUEPRINT.md` para:
-- **Estructura de UseCase**: Implementar `UseCaseWithParams` o `UseCaseWithoutParams`.
-- **Manejo de Errores**: Usar obligatoriamente `DataStateFactory` en la implementación del repositorio.
-- **Retrofit**: Actualizar el `DataSource` con las anotaciones correctas.
-
-## ⚡ Disparador Interactivo
-Si el usuario escribe **"Generaré un caso de uso"** o **"Añadir nuevo caso de uso"**, el agente debe responder EXACTAMENTE:
+## ⚡ Disparador Interactivo (Plantilla de Recolección)
+Si el usuario escribe **"Generaré un caso de uso"** o **"Añadir nuevo caso de uso"**, el agente DEBE responder EXACTAMENTE:
 
 > "Claro, para generar un feature óptimo necesito los siguientes datos:
 > 
-> - **Feature**: [Nombre]
+> - **Feature**: [Nombre del módulo existente]
 > - **Caso de Uso**: [Nombre] | Path: [Ruta] | Método: [GET/POST]
-> - **Body**: [JSON de parámetros]
-> - **Observaciones**: [Ej: Monto * 100, Split de string, etc.]
-> - **Response**: [Estructura del JSON esperado]"
+> - **BaseUrl**: https://learn.microsoft.com/es-es/intune/configmgr/core/clients/deploy/about-client-settings
+> - **Body/Params**: [JSON de parámetros]
+> - **Observaciones**: [Lógica especial: Ej. Monto * 100, Split de strings, campos 'SIEMPRE', etc.]
+> - **Response**: [JSON esperado]"
 
-## 🛠️ Pasos de Ejecución (Flujo de Trabajo)
-Una vez recibidos los datos, el agente debe realizar lo siguiente:
+## 🏗️ Pasos de Ejecución Quirúrgica
 
-1. **Capa Domain**:
-    - Agregar el método abstracto a la interfaz del `Repository` del feature.
-    - Crear el archivo del nuevo `UseCase` y su clase de `Params` correspondiente.
-2. **Capa Data**:
-    - Actualizar el `DataSource` (Retrofit) con el nuevo endpoint, método HTTP y parámetros.
-    - Crear o actualizar el `Model` si la respuesta de la API requiere mapeos especiales (ej. splits de strings).
-    - Implementar el método en el `RepositoryImpl` usando bloques `try-catch` con `DataStateFactory`.
-3. **Inyección de Dependencias**:
-    - Registrar el nuevo `UseCase` en el archivo `{feature}_dependencies.dart` del injector.
-4. **Mantenimiento**:
-    - Actualizar los **Barrel Exports** (`.dart`) si se crearon archivos nuevos.
+### 1. Capa Domain
+- **Repository Interface**: Añadir la firma del nuevo método al repositorio abstracto del feature.
+- **UseCase Class**: Crear el archivo del nuevo caso de uso extendiendo de `UseCaseWithParams` o `UseCaseWithoutParams`.
+- **Params**: Generar una clase de parámetros dedicada para este caso de uso.
 
-## 📝 Reglas de Transformación
-- Aplicar cualquier lógica descrita en el campo **Observaciones** (conversión de tipos, cálculos, etc.).
-- Mantener el principio de **Hard-Coding** para parámetros marcados como "SIEMPRE".
-- Asegurar la **Reutilización de Parámetros** para evitar redundancia en los inputs del UseCase.
+### 2. Capa Data
+- **DataSource (Retrofit)**: Añadir el nuevo método con su anotación HTTP. Si **BaseUrl** tiene valor, generar un nuevo DataSource específico o usar el atributo `baseUrl` en la anotación si el proyecto lo permite.
+- **Model**: Generar un nuevo `Model` basado en el **Response** proporcionado. Debe incluir `fromJson`, `toJson` y el método **`toEntity()`**.
+- **RepositoryImpl**: Implementar el nuevo método usando obligatoriamente `DataStateFactory` para capturar `DioException` y excepciones generales con un `idError` único.
+
+### 3. Persistencia Opcional
+- Si las **Observaciones** indican que el caso de uso debe guardar o leer datos locales, el agente debe proponer la creación de un nuevo **Mixin** en `SharedPreferenceHelper` (ej: `FeatureNameMixin`) para manejar esa persistencia de forma limpia.
+
+### 4. Inyección de Dependencias (DI)
+- Registrar el nuevo `UseCase` como `factory` en el archivo `{feature}_dependencies.dart`.
+- Si se creó un nuevo `DataSource` por un `BaseUrl` distinto, registrarlo también en este archivo.
+
+## 📝 Reglas de Lógica Especial
+- **Fidelidad al JSON**: El mapeo inicial debe ser idéntico al **Response**. Las transformaciones complejas (splits, cálculos) se aplican solo si están en **Observaciones**.
+- **Hard-Coding**: Parámetros marcados como "SIEMPRE" se queman en el Data/Repository, evitando pedirlos en el UseCase.
+- **Reutilización de Parámetros**: Si varios campos de la API usan el mismo dato, el UseCase solo debe recibir un parámetro y el Repository se encarga de distribuirlo.
+- **Barrel Exports**: Asegurar que los nuevos archivos (UseCase, Model, Entity) sean exportados en sus respectivos archivos barrel.
