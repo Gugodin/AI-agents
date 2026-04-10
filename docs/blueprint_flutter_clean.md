@@ -85,8 +85,8 @@ lib/
 │   │   ├── network.dart              # Barrel export
 │   │   ├── clients/
 │   │   │   ├── clients.dart
-│   │   │   ├── exitus_client.dart    # Dio → Middleware API
-│   │   │   └── exitus_client_direct.dart # Dio → Backend directo
+│   │   │   ├── client.dart    # Dio → Middleware API (Ejemplo de uso)
+│   │   │   └── client_direct.dart # Dio → Backend directo (Ejemplo de uso)
 │   │   ├── interceptors/
 │   │   │   ├── interceptors.dart
 │   │   │   ├── connectivity_interceptor.dart
@@ -433,17 +433,19 @@ class ResponseModel {
 
 ## 4. Capa de Red (Network Layer)
 
-### 4.1 ExitusClient (Dio configurado)
+### 4.1 Clientes HTTP (Dio configurado)
 
-Archivo: `lib/core/network/clients/exitus_client.dart`
+Archivo: `lib/core/network/clients/client.dart`
+
+El proyecto puede tener **uno o más clientes Dio**, cada uno apuntando a un origen distinto (middleware, backend directo, API externa, etc.). Todos comparten la misma estructura base.
 
 ```dart
-class ExitusClient {
+class AppClient {
   late final Dio _dio;
 
-  ExitusClient(ConnectivityEventBus bus, ConnectivityHelper helper) {
+  AppClient(ConnectivityEventBus bus, ConnectivityHelper helper) {
     _dio = Dio();
-    _dio.options.baseUrl = ApiConstants.baseUrl;
+    _dio.options.baseUrl = ApiConstants.baseUrl;   // URL principal del proyecto
     _dio.options.sendTimeout = const Duration(seconds: ApiConstants.connectionTimeoutSeconds);
     _dio.options.receiveTimeout = const Duration(seconds: ApiConstants.receiveTimeoutSeconds);
     _dio.interceptors.addAll([
@@ -457,7 +459,7 @@ class ExitusClient {
 }
 ```
 
-Existe `ExitusClientDirect` con la misma estructura pero apuntando al backend directo.
+Si el proyecto requiere apuntar a un segundo origen (ej: backend directo, API de terceros) se crea `AppClientDirect` con la misma estructura pero con su propia `baseUrl` en `ApiConstants`. Ambos clientes se registran como `Singleton` en GetIt y se inyectan donde se necesiten.
 
 ### 4.2 Interceptores
 
@@ -469,11 +471,164 @@ Existe `ExitusClientDirect` con la misma estructura pero apuntando al backend di
 
 ### 4.3 `ConnectivityEventBus` (Singleton)
 
-Basado en RxDart. Emite eventos `ConnectivityEventType.noConnection` para que los BLoCs globales reaccionen.
+Archivo: `lib/core/events/connectivity_event_bus.dart`
+
+Implementado con `StreamController.broadcast()` de Dart (no requiere RxDart). Permite que cualquier parte de la app escuche eventos de conectividad sin acoplamiento directo.
+
+```dart
+enum ConnectivityEventType { noConnection }
+
+class ConnectivityEventBus {
+  static ConnectivityEventBus get instance => _instance ??= ConnectivityEventBus._internal();
+  static ConnectivityEventBus? _instance;
+  ConnectivityEventBus._internal();
+
+  final _controller = StreamController<ConnectivityEventType>.broadcast();
+
+  Stream<ConnectivityEventType> get stream => _controller.stream;
+
+  void emit(ConnectivityEventType event) {
+    if (!_controller.isClosed) _controller.add(event);
+  }
+
+  void dispose() => _controller.close();
+}
+```
+
+El `ConnectivityInterceptor` llama a `emit(ConnectivityEventType.noConnection)` y el `ConnectivityBloc` (global) escucha el stream para reaccionar en la UI.
 
 ---
 
-## 5. Feature de Referencia: `payments`
+## 5. App Entry Point (`main.dart` + `segi_app.dart`)
+
+### 5.1 `main.dart` — Bootstrapping
+
+Archivo: `lib/main.dart`
+
+Orden de inicialización obligatorio:
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar locale para formateo de fechas
+  await initializeDateFormatting('es', null); // ajustar al locale del proyecto
+
+  // Activar el observador global de BLoCs (solo en debug)
+  // Bloc.observer = const AppBlocObserver();
+
+  // Inicializar inyección de dependencias
+  setupInjector();
+
+  // SharedPreferences requiere init() async antes de usarse
+  await getIt<SharedPreferenceHelper>().init();
+
+  // Forzar orientación vertical (ajustar según el proyecto)
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  runApp(const App());
+}
+```
+
+> **Importante:** `SharedPreferenceHelper.init()` debe llamarse antes de `runApp()` porque el helper usa `late SharedPreferences _preferences` que se popula en ese método. Cualquier acceso previo causará un `LateInitializationError`.
+
+### 5.2 `segi_app.dart` — App root
+
+Archivo: `lib/app/app.dart`
+
+Patrones clave que deben estar presentes en el widget raíz:
+
+```dart
+class App extends StatelessWidget {
+  const App({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Builder(builder: (context) {
+      // Clamp del texto para evitar errores con date pickers
+      // cuando el sistema tiene textScaleFactor > 1.3
+      final rawScale = MediaQuery.of(context).textScaler.scale(1.0);
+      final clampedScale = rawScale.clamp(1.0, 1.3);
+
+      return MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(clampedScale),
+        ),
+        // ToastificationWrapper es OBLIGATORIO para que ToastHelper funcione.
+        // Debe envolver todo el árbol, encima del MaterialApp.
+        child: ToastificationWrapper(
+          child: MultiBlocProvider(
+            providers: [
+              // BLoCs globales (singleton en GetIt, provisto aquí para toda la app)
+              BlocProvider<ConnectivityBloc>(create: (_) => getIt<ConnectivityBloc>()),
+              BlocProvider<OverlayBloc>(create: (_) => getIt<OverlayBloc>()),
+              // ... otros BLoCs globales del proyecto
+            ],
+            child: MaterialApp(
+              title: AppConstants.appName,
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.themeLight,
+              initialRoute: Routes.initialRoute,
+              routes: Routes.routes,
+              onGenerateRoute: Routes.onGenerateRoute,
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+```
+
+> **`ToastificationWrapper`:** Sin este widget en el árbol, cualquier llamada a `toastification.show()` lanza una excepción en runtime. Debe estar por encima del `MaterialApp`.
+
+> **`MultiBlocProvider` en raíz:** Los BLoCs globales (Connectivity, Overlay, Auth, etc.) se proveen aquí. Los BLoCs de feature se proveen localmente en sus pantallas.
+
+### 5.3 `AppBlocObserver` — Observador global de BLoCs
+
+Archivo: `lib/core/foundation/bloc_observer/app_bloc_observer.dart`
+
+Observador de debug que loguea el ciclo de vida de los BLoCs. Se activa descomentando `Bloc.observer = const AppBlocObserver()` en `main.dart`.
+
+**Patrón recomendado:** restringir el logging a BLoCs específicos para no saturar la consola:
+
+```dart
+class AppBlocObserver extends BlocObserver {
+  const AppBlocObserver();
+
+  @override
+  void onCreate(BlocBase<dynamic> bloc) {
+    super.onCreate(bloc);
+    if (bloc is! TargetBloc) return; // filtrar por BLoC específico
+    if (kDebugMode) debugPrint('🟢 onCreate -- ${bloc.runtimeType}');
+  }
+
+  @override
+  void onEvent(Bloc<dynamic, dynamic> bloc, Object? event) {
+    super.onEvent(bloc, event);
+    if (bloc is! TargetBloc) return;
+    if (kDebugMode) debugPrint('📩 onEvent -- ${bloc.runtimeType}\n   event: $event');
+  }
+
+  @override
+  void onChange(BlocBase<dynamic> bloc, Change<dynamic> change) {
+    super.onChange(bloc, change);
+    if (bloc is! TargetBloc) return;
+    if (kDebugMode) debugPrint(
+      '🔄 onChange -- ${bloc.runtimeType}\n'
+      '   current: ${change.currentState.runtimeType}\n'
+      '   next:    ${change.nextState.runtimeType}',
+    );
+  }
+}
+```
+
+---
+
+## 6. Feature de Referencia: `payments`
 
 Esta sección documenta la arquitectura completa de un feature. **Todos los features siguen este mismo patrón.**
 
@@ -564,20 +719,32 @@ class GeneratePaymentLinkParams {
 ### 5.3 Capa Data
 
 **DataSource** (Retrofit `@RestApi`):
-```dart
-@RestApi(baseUrl: 'https://api.example.com/api/LinkDePago')
-abstract class PaymentsDataSource {
-  factory PaymentsDataSource(Dio dio, {String? baseUrl}) = _PaymentsDataSource;
 
-  @POST('/GenerarLink')
-  Future<ResponseModel> generatePaymentLink({
-    @Field('nombre_cliente') required String nombreCliente,
-    // ... otros @Field / @Query / @Header
-    @Header('Authorization') required String basicAuth,
+> **Nota sobre `baseUrl`:** El atributo `baseUrl` en `@RestApi` **no siempre es necesario**. La URL base normalmente la define el cliente Dio (`AppClient`) que se inyecta al construir el DataSource. Solo se especifica `baseUrl` directamente en el `@RestApi` cuando el DataSource apunta a una API externa cuyas peticiones no deben pasar por ninguno de los clientes del proyecto (ej: una API de terceros con su propia URL y autenticación). En ese caso se crea además un `AppClientDirect` dedicado o se construye el `Dio` manualmente.
+
+```dart
+// ✅ Caso normal: baseUrl viene del AppClient, NO se declara en @RestApi
+@RestApi()
+abstract class FeatureDataSource {
+  factory FeatureDataSource(Dio dio, {String? baseUrl}) = _FeatureDataSource;
+
+  @GET('/endpoint')
+  Future<ResponseModel> getItems();
+}
+
+// ⚠️ Caso especial: API externa ajena a nuestros clientes
+@RestApi(baseUrl: 'https://api.tercero.com/v1')
+abstract class ExternalDataSource {
+  factory ExternalDataSource(Dio dio, {String? baseUrl}) = _ExternalDataSource;
+
+  @POST('/recurso')
+  Future<ResponseModel> createItem({
+    @Field('campo') required String campo,
+    @Header('Authorization') required String auth,
   });
 
-  @GET('/ObtenerPagos')
-  Future<ResponseModel> getPaymentsFromReference({ @Query('referencia') required String referencia, ... });
+  @GET('/recursos')
+  Future<ResponseModel> getItems({ @Query('filtro') required String filtro });
 }
 ```
 
@@ -627,36 +794,108 @@ class PaymentEvent with _$PaymentEvent {
 }
 ```
 
-**State** (`part of 'payment_bloc.dart'`):
+**State** (`part of 'feature_bloc.dart'`):
 ```dart
 @freezed
-class PaymentState with _$PaymentState {
-  const factory PaymentState.initial() = _Initial;
-  const factory PaymentState.loading({
-    required bool isGeneratingLink,
-    required bool isFetchingPayments,
-    List<PaymentEntity>? payments,         // Datos preservados durante loading
-    PaymentGeneratedEntity? paymentGenerated,
+class FeatureState with _$FeatureState {
+  const factory FeatureState.initial() = _Initial;
+  const factory FeatureState.loading({
+    required bool isFetchingList,        // Flag granular por operación
+    required bool isExecutingAction,
+    List<ItemEntity>? items,             // Datos preservados durante loading
+    ItemDetailEntity? detail,
   }) = _Loading;
-  const factory PaymentState.error({
+  const factory FeatureState.error({
     required String message,
-    List<PaymentEntity>? payments,
+    List<ItemEntity>? items,             // Datos preservados en error
+    ItemDetailEntity? detail,
   }) = _Error;
-  const factory PaymentState.loaded({
-    List<PaymentEntity>? payments,
-    PaymentGeneratedEntity? paymentGenerated,
+  const factory FeatureState.loaded({
+    List<ItemEntity>? items,
+    ItemDetailEntity? detail,
   }) = _Loaded;
 }
+```
 
-// Extension para accesores cómodos en la UI
-extension PaymentStateX on PaymentState {
-  bool get isLoading => maybeMap(loading: (_) => true, orElse: () => false);
-  List<PaymentEntity>? get payments => mapOrNull(
-    loaded: (s) => s.payments,
-    loading: (s) => s.payments,   // Preservar datos en loading
-    error: (s) => s.payments,
+**Extension `FeatureStateX`** — se define en el mismo archivo `feature_state.dart` y cumple dos roles:
+
+**1. Verificadores de tipo de estado** (usados en la capa de presentación para mostrar/ocultar widgets):
+```dart
+extension FeatureStateX on FeatureState {
+  // ─── Verificadores de estado ─────────────────────────────────────────
+  bool get isLoading => maybeMap(
+    loading: (_) => true,
+    orElse: () => false,
+  );
+
+  bool get isFetchingList => maybeMap(
+    loading: (s) => s.isFetchingList,
+    orElse: () => false,
+  );
+
+  bool get isExecutingAction => maybeMap(
+    loading: (s) => s.isExecutingAction,
+    orElse: () => false,
+  );
+
+  bool get isError => maybeMap(
+    error: (_) => true,
+    orElse: () => false,
+  );
+
+  String get errorMessage => mapOrNull(error: (s) => s.message) ?? '';
+
+  // ─── Accesores de datos cross-state ──────────────────────────────────
+  // Retornan el dato sin importar en qué estado se encuentre el BLoC,
+  // permitiendo que la UI siempre tenga acceso al último valor conocido.
+  List<ItemEntity>? get items => mapOrNull(
+    loaded: (s) => s.items,
+    loading: (s) => s.items,   // ← preservado durante loading
+    error: (s) => s.items,     // ← preservado en error
+  );
+
+  ItemDetailEntity? get detail => mapOrNull(
+    loaded: (s) => s.detail,
+    loading: (s) => s.detail,
+    error: (s) => s.detail,
   );
 }
+```
+
+**2. Helpers internos del BLoC** — con estos accesores el BLoC puede leer el estado actual de forma limpia al emitir nuevos estados, sin necesidad de un `switch/when` completo:
+```dart
+// Dentro de un handler del BLoC, al emitir loading se preservan los datos actuales:
+emit(FeatureState.loading(
+  isFetchingList: true,
+  isExecutingAction: false,
+  items: state.items,    // ← usa el accessor cross-state
+  detail: state.detail,
+));
+
+// Al emitir error también se preservan los datos:
+emit(FeatureState.error(
+  message: userMessage,
+  items: state.items,
+  detail: state.detail,
+));
+```
+
+**Uso en la capa de presentación (Widget/BlocBuilder):**
+```dart
+BlocBuilder<FeatureBloc, FeatureState>(
+  builder: (context, state) {
+    if (state.isFetchingList) return const SkeletonListView();
+    if (state.isError) return ErrorCard(message: state.errorMessage);
+
+    final items = state.items;   // ← siempre disponible
+    if (items == null || items.isEmpty) return const EmptyState();
+
+    return ItemListView(
+      items: items,
+      isActionLoading: state.isExecutingAction, // spinner granular
+    );
+  },
+)
 ```
 
 **BLoC**:
@@ -689,7 +928,7 @@ class PaymentBloc extends Bloc<PaymentEvent, PaymentState> {
 
 ---
 
-## 6. Inyección de Dependencias (GetIt)
+## 7. Inyección de Dependencias (GetIt)
 
 ### 6.1 `injector.dart` — Punto de entrada
 
@@ -704,9 +943,9 @@ void setupInjector() {
   getIt.registerSingleton<SecureStorageHelper>(SecureStorageHelper.instance);
   getIt.registerSingleton<ToastContract>(ToastHelper.instance);
 
-  // 2. Clientes HTTP
-  getIt.registerSingleton<ExitusClient>(ExitusClient(getIt<ConnectivityEventBus>(), getIt<ConnectivityHelper>()));
-  getIt.registerSingleton<ExitusClientDirect>(ExitusClientDirect(...));
+  // 2. Clientes HTTP (nombrarlos según el proyecto, ej: AppClient / AppClientDirect)
+  getIt.registerSingleton<AppClient>(AppClient(getIt<ConnectivityEventBus>(), getIt<ConnectivityHelper>()));
+  getIt.registerSingleton<AppClientDirect>(AppClientDirect(getIt<ConnectivityEventBus>(), getIt<ConnectivityHelper>()));
 
   // 3. BLoCs globales
   getIt.registerSingleton<OverlayBloc>(OverlayBloc());
@@ -724,8 +963,9 @@ void setupInjector() {
 ```dart
 void payments_dependencies() {
   // DataSource: registerFactory (nueva instancia cada vez)
+  // Inyectar el cliente que corresponda según el origen de la API
   getIt.registerFactory<PaymentsDataSource>(
-    () => PaymentsDataSource(getIt<ExitusClient>().dio),
+    () => PaymentsDataSource(getIt<AppClient>().dio),
   );
 
   // Repository: registerFactory
@@ -759,7 +999,7 @@ void payments_dependencies() {
 
 ---
 
-## 7. Rutas
+## 8. Rutas
 
 Archivo: `lib/config/routes/routes.dart`
 
@@ -814,7 +1054,7 @@ Navigator.pushNamed(context, Routes.paymentLink, arguments: {
 
 ---
 
-## 8. Barrel Exports — Convención
+## 9. Barrel Exports — Convención
 
 Cada carpeta tiene un archivo `nombre_carpeta.dart` que re-exporta todo su contenido:
 
@@ -837,7 +1077,7 @@ import 'package:app_gestion/features/payments/payments.dart';
 
 ---
 
-## 9. Reglas de Code Generation
+## 10. Reglas de Code Generation
 
 Ejecutar siempre después de crear/modificar archivos con `@freezed`, `@RestApi`, `@JsonSerializable`:
 
@@ -856,7 +1096,110 @@ Archivos generados automáticamente (no editar manualmente):
 
 ---
 
-## 10. Checklist para Crear un Nuevo Feature
+## 11. Constantes del Proyecto
+
+### 11.1 `ApiConstants` — Red y entornos
+
+Archivo: `lib/core/constants/api_constants.dart`
+
+Template con soporte multi-entorno. Ajustar URLs y tokens según el proyecto:
+
+```dart
+class ApiConstants {
+  // Modo debug (usa kDebugMode de Flutter)
+  static const bool debugMode = kDebugMode;
+
+  // Timeouts de red (segundos)
+  static const int connectionTimeoutSeconds = 30;
+  static const int receiveTimeoutSeconds    = 30;
+
+  // URLs por entorno
+  static const String _urlProd   = 'https://api.miproyecto.com/v1';
+  static const String _urlQA     = 'https://api-qa.miproyecto.com/v1';
+  static const String _urlDirect = 'https://backend.miproyecto.com/api/v1'; // acceso directo
+
+  // URL activa (cambiar según el entorno de compilación)
+  static const String baseUrl       = _urlProd;
+  static const String baseUrlDirect = _urlDirect;
+
+  // Tokens por entorno
+  static const String _tokenProd = 'TOKEN_PRODUCCION';
+  static const String _tokenTest = 'TOKEN_QA';
+  static const String apiToken   = debugMode ? _tokenTest : _tokenProd;
+}
+```
+
+### 11.2 `AppConstants` — Constantes de UI y lógica
+
+Archivo: `lib/core/constants/app_constants.dart`
+
+Template de constantes no relacionadas a red:
+
+```dart
+class AppConstants {
+  // Información de la app
+  static const String appName    = 'NombreApp';
+  static const String appVersion = '1.0.0';
+
+  // Claves de SharedPreferences (usadas en SharedPreferenceHelper)
+  static const String userIdKey    = 'user-id';
+  static const String userNameKey  = 'user-name';
+  static const String userTokenKey = 'user-token';
+  // ... agregar las claves necesarias por proyecto
+
+  // Paginación
+  static const int defaultPageSize = 20;
+
+  // Animaciones
+  static const int defaultAnimationDurationMs = 300;
+  static const int loadingAnimationDurationMs = 500;
+
+  // Validación
+  static const int minPasswordLength  = 6;
+  static const int maxUsernameLength  = 50;
+
+  // UI
+  static const double defaultBorderRadius = 8.0;
+}
+```
+
+### 11.3 `SharedPreferenceHelper` — Patrón de Mixins
+
+Archivo: `lib/core/helpers/shared_preference_helper.dart`
+
+La clase principal extiende una base privada y agrega funcionalidad mediante **Mixins** por dominio. Esto evita que la clase crezca indefinidamente:
+
+```dart
+class SharedPreferenceHelper extends _SharedPreferenceCacheBase
+    with UserSessionMixin, CatalogsMixin, FeatureAMixin {
+  static final SharedPreferenceHelper _instance = SharedPreferenceHelper._internal();
+  static SharedPreferenceHelper get instance => _instance;
+  factory SharedPreferenceHelper() => _instance;
+  SharedPreferenceHelper._internal();
+
+  late SharedPreferences _preferences;
+
+  // Debe llamarse en main() antes de runApp()
+  Future<bool> init() async {
+    _preferences = await SharedPreferences.getInstance();
+    return true;
+  }
+}
+
+// Cada Mixin encapsula sus propias claves y métodos
+mixin UserSessionMixin on _SharedPreferenceCacheBase {
+  Future<void> saveUserId(String id) => setString(AppConstants.userIdKey, id);
+  String? getUserId() => getString(AppConstants.userIdKey);
+}
+
+mixin CatalogsMixin on _SharedPreferenceCacheBase {
+  // métodos de caché de catálogos
+}
+```
+
+---
+
+## 12. Checklist para Crear un Nuevo Feature
 
 ```
 □ 1. Crear carpeta lib/features/{feature_name}/
@@ -887,7 +1230,7 @@ Archivos generados automáticamente (no editar manualmente):
 
 ---
 
-## 11. Patrones Clave
+## 13. Patrones Clave
 
 ### Preservar datos durante loading
 Los estados `loading` y `error` del BLoC llevan los mismos campos opcionales que `loaded`, permitiendo que la UI muestre datos previos con skeleton/shimmer mientras se actualizan.
@@ -899,4 +1242,27 @@ Los Helpers (ConnectivityHelper, SharedPreferenceHelper, etc.) implementan el pa
 Factory estática que mapea automáticamente `DioException` a mensajes user-friendly según el código HTTP (401, 403, 404, 500, timeout, etc.) y loguea con Logger.
 
 ### ToastContract
-Interfaz en `core/contracts/` implementada por `ToastHelper` en `core/helpers/`. Se registra como `ToastContract` en GetIt, permitiendo mockear en tests.
+
+Interfaz en `core/contracts/toast_contract/toast_contract.dart` implementada por `ToastHelper` en `core/helpers/`. Se registra como `ToastContract` en GetIt, permitiendo mockear en tests.
+
+**Implementación:** `ToastHelper` usa internamente el paquete **`toastification`** para mostrar las notificaciones en pantalla. Define además dos enums propios que la interfaz expone: `ToastPosition` (top/center/bottom) y `ToastDuration` (short/medium/long/custom).
+
+**Requisito crítico:** Para que `toastification` funcione en runtime, el widget **`ToastificationWrapper`** debe envolver el árbol de widgets en `segi_app.dart`, por encima del `MaterialApp`. Sin él, cualquier llamada a `showSuccess()` / `showError()` lanzará una excepción:
+
+```dart
+// ✅ Correcto
+ToastificationWrapper(
+  child: MaterialApp( ... ),
+)
+
+// ❌ Incorrecto — toastification no encontrará el contexto
+MaterialApp(
+  home: ToastificationWrapper( ... ), // demasiado abajo en el árbol
+)
+```
+
+Uso desde features:
+```dart
+getIt<ToastContract>().showSuccess(message: 'Operación exitosa');
+getIt<ToastContract>().showError(message: state.errorMessage);
+```

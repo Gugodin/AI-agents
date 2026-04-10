@@ -21,7 +21,7 @@ Si el usuario escribe **"Generaré un feature"** o **"Generaremos un nuevo featu
 > "Claro, para generar un feature óptimo necesito los siguientes datos:
 > 
 > - **Feature**: [Nombre]
-> - **Caso de Uso**: [Nombre] | Path: [Ruta] | Método: [GET/POST]
+> - **Caso de Uso {Numero de caso de uso}**: [Nombre] | Path: [Ruta] | Método: [GET/POST]
 > - **Body**: [JSON de parámetros]
 > - **Observaciones**: [Ej: Monto * 100, Split de string, etc.]
 > - **Response**: [Estructura del JSON esperado]"
