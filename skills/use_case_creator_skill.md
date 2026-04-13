@@ -1,3 +1,8 @@
+---
+name: use-case-creator
+description: Añadir nueva funcionalidad (caso de uso) a un feature existente en Clean Architecture
+---
+
 # Skill: Creador de Casos de Uso Quirúrgico (v2.2)
 
 ## 🎯 Objetivo

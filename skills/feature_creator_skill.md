@@ -1,3 +1,8 @@
+---
+name: feature-creator
+description: Generador de features completo (Domain, Data, Presentation) siguiendo el estándar de Clean Architecture para Flutter
+---
+
 # Skill: Generador de Features Flexible (v2.2)
 
 ## 🎯 Objetivo

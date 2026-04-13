@@ -1,3 +1,8 @@
+---
+name: setup-proyect
+description: Inicializar estructura completa, Core Foundation y configuración nativa de un proyecto Flutter
+---
+
 # Skill: Setup Proyecto Clean (v2.3)
 
 ## 🎯 Objetivo
