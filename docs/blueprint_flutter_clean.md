@@ -60,20 +60,20 @@ lib/
 ├── core/
 │   ├── core.dart                     # Barrel export global del core
 │   ├── components/                   # Widgets reutilizables globales
-│   ├── constants/                    # ApiConstants (baseUrl, tokens, timeouts)
-│   ├── contracts/
-│   │   ├── contracts.dart
-│   │   └── toast_contract/           # Interfaz abstracta de Toast
-│   ├── events/                       # ConnectivityEventBus (Singleton, RxDart)
+│   ├── constants/                     # ApiConstants (baseUrl, tokens, timeouts)
+│   ├── contracts/                     # Interfaces abstractas (solo archivos .dart)
+│   │   └── toast_contract.dart       # Interfaz abstracta de Toast
+│   ├── events/                        # ConnectivityEventBus (Singleton, RxDart)
+│   │   └── connectivity_event_bus.dart
 │   ├── foundation/
 │   │   ├── foundation.dart           # Barrel export
 │   │   ├── bloc_observer/
 │   │   │   └── app_bloc_observer.dart
 │   │   ├── data_state/
-│   │   │   ├── data_state.dart       # Sealed class DataState<T> con Freezed
+│   │   │   ├── data_state.dart       # Sealed class DataState<T> con Freezed + Extensions
 │   │   │   └── data_state.freezed.dart
 │   │   └── use_case/
-│   │       └── use_case.dart         # UseCaseWithParams + UseCaseWithoutParams
+│   │       └── use_case.dart        # Los 4 tipos de UseCase (ver sección 4)
 │   ├── helpers/
 │   │   ├── helpers.dart              # Barrel export
 │   │   ├── biometrics_helper.dart    # Singleton
@@ -89,8 +89,8 @@ lib/
 │   │   ├── network.dart              # Barrel export
 │   │   ├── clients/
 │   │   │   ├── clients.dart
-│   │   │   ├── client.dart    # Dio → Middleware API (Ejemplo de uso)
-│   │   │   └── client_direct.dart # Dio → Backend directo (Ejemplo de uso)
+│   │   │   ├── client.dart          # Dio → Middleware API (Ejemplo de uso)
+│   │   │   └── client_direct.dart    # Dio → Backend directo (Ejemplo de uso)
 │   │   ├── interceptors/
 │   │   │   ├── interceptors.dart
 │   │   │   ├── connectivity_interceptor.dart
@@ -102,7 +102,7 @@ lib/
 │       ├── utils.dart
 │       ├── formatters/
 │       ├── types/
-│       │   └── typedef.dart          # DataResult<T> = Future<DataState<T>>
+│       │   └── typedef.dart          # DataResult<T>, DataResultVoid
 │       └── validators/
 │
 ├── injector/
@@ -174,44 +174,301 @@ abstract class DataState<T> with _$DataState<T> {
 }
 ```
 
-### 3.2 DataStateFactory
+### 3.2 DataStateConvenience + propagateError
 
-Mapeo de errores con mensajes user-friendly:
+**EXTENSIÓN sobre `DataState<T>`** que incluye mapeo de errores y `propagateError`. No es una clase separada.
 
 ```dart
-// 400 → "Los datos enviados no son válidos"
-// 401 → "Tus credenciales han expirado"
-// 403 → "No tienes permisos"
-// 404 → "No pudimos encontrar lo que buscas"
-// 500/502/503 → "El servidor está teniendo problemas"
-// Timeout → "La conexión tardó demasiado"
+/// Mapeo de errores DioException → mensajes user-friendly
+/// 400 → "Los datos enviados no son válidos"
+/// 401 → "Tus credenciales han expirado"
+/// 403 → "No tienes permisos"
+/// 404 → "No pudimos encontrar lo que buscas"
+/// 500/502/503 → "El servidor está teniendo problemas"
+/// Timeout → "La conexión tardó demasiado"
+
+extension DataStateConvenience<T> on DataState<T> {
+  // Verificadores de tipo
+  bool get isSuccess      => maybeWhen(orElse: () => false);
+  bool get isDioError     => maybeWhen(orElse: () => false);
+  bool get isGeneralError  => maybeWhen(orElse: () => false);
+  bool get isError         => isDioError || isGeneralError;
+
+  // Accesores
+  T? get dataOrNull;
+  String? get userMessageOrNull;
+  String? get technicalMessageOrNull;
+
+  /// Map fromDioException → mensaje amigable
+  static String _mapDioExceptionToMessage(DioException error) { ... }
+}
+
+/// propagateError<R>()
+///
+/// Convierte un DataState<A> en DataState<B> preservando el error original.
+/// Sin generar logs duplicados, solo cambia el tipo genérico.
+///
+/// ⚠️ Lanza StateError si se llama sobre un DataState.success
+extension DataStatePropagateError<T> on DataState<T> {
+  DataState<R> propagateError<R>() {
+    return maybeWhen(
+      success: (_) => throw StateError('propagateError solo válido en estados de error'),
+      dioError: (error, userMessage, technicalMessage, module, file, line, stackTrace) =>
+        DataState<R>.dioError(
+          error: error,
+          userMessage: userMessage ?? _mapDioExceptionToMessage(error),
+          technicalMessage: technicalMessage ?? error.message,
+          module: module,
+          file: file,
+          line: line,
+          stackTrace: stackTrace,
+        ),
+      generalError: (userMessage, technicalMessage, module, file, line, stackTrace) =>
+        DataState<R>.generalError(
+          userMessage: userMessage,
+          technicalMessage: technicalMessage,
+          module: module,
+          file: file,
+          line: line,
+          stackTrace: stackTrace,
+        ),
+      orElse: () => throw StateError('Estado no reconocido'),
+    );
+  }
+}
 ```
 
-### 3.3 DataResult<T>
+### 3.3 DataResult<T> y DataResultVoid
 
 ```dart
 typedef DataResult<T> = Future<DataState<T>>;
 typedef DataResultVoid = Future<DataState<VoidSuccess>>;
+
+/// Clase especial para éxito sin datos
 class VoidSuccess { const VoidSuccess(); }
 ```
 
-### 3.4 UseCase
+---
+
+## 4. Los 4 Tipos de UseCase
+
+El proyecto define **4 abstract classes** para cubrir todos los escenarios de uso:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        UseCase                                  │
+├───────────────────────┬─────────────────────────────────────────┤
+│   CON PARÁMETROS      │         SIN PARÁMETROS                 │
+│                       │                                         │
+│  UseCaseWithParams<T> │    UseCaseWithoutParams<T>             │
+│  UseCaseVoid<Params>  │    UseCaseVoidWithoutParams            │
+└───────────────────────┴─────────────────────────────────────────┘
+```
+
+### 4.1 Implementación Base
 
 ```dart
+// ============================================================================
+// USE CASE CON PARÁMETROS
+// ============================================================================
+
+/// UseCase que recibe parámetros y retorna un valor
 abstract class UseCaseWithParams<Type, Params> {
   const UseCaseWithParams();
+
   DataResult<Type> call(Params params);
 }
 
+/// UseCase que recibe parámetros pero retorna void
+abstract class UseCaseVoid<Params> {
+  const UseCaseVoid();
+
+  DataResultVoid call(Params params);
+}
+
+// ============================================================================
+// USE CASE SIN PARÁMETROS
+// ============================================================================
+
+/// UseCase sin parámetros que retorna un valor
 abstract class UseCaseWithoutParams<Type> {
   const UseCaseWithoutParams();
+
   DataResult<Type> call();
+}
+
+/// UseCase sin parámetros que retorna void
+abstract class UseCaseVoidWithoutParams {
+  const UseCaseVoidWithoutParams();
+
+  DataResultVoid call();
+}
+```
+
+### 4.2 Cuándo Usar Cada Uno
+
+| Tipo | Cuándo Usar | Ejemplo |
+|------|-------------|---------|
+| `UseCaseWithParams<T>` | Operaciones que requieren datos de entrada | `GetUserById(Params)`, `LoginUser(LoginParams)` |
+| `UseCaseWithoutParams<T>` | Operaciones que no requieren parámetros | `GetCurrentUser()`, `GetDashboard()` |
+| `UseCaseVoid<Params>` | Acciones que no retornan datos | `LogoutUser(userId)`, `DeleteItem(itemId)` |
+| `UseCaseVoidWithoutParams` | Acciones sin entrada ni retorno | `ClearCache()`, `SyncData()` |
+
+### 4.3 Ejemplos de Uso
+
+#### UseCaseWithParams (más común)
+
+```dart
+// Domain: Definición
+class GetUserByIdUseCase extends UseCaseWithParams<User, UserIdParams> {
+  final UserRepository _repository;
+
+  GetUserByIdUseCase(this._repository);
+
+  @override
+  DataResult<User> call(UserIdParams params) async {
+    return _repository.getUserById(params.id);
+  }
+}
+
+// Domain: Params
+class UserIdParams {
+  final String id;
+  const UserIdParams({required this.id});
+}
+
+// Data: Llamada
+final result = await getUserByIdUseCase(const UserIdParams(id: '123'));
+
+if (result.isSuccess) {
+  final user = result.dataOrNull;
+}
+```
+
+#### UseCaseWithoutParams
+
+```dart
+// Domain: Definición
+class GetCurrentUserUseCase extends UseCaseWithoutParams<User> {
+  final UserRepository _repository;
+
+  GetCurrentUserUseCase(this._repository);
+
+  @override
+  DataResult<User> call() async {
+    return _repository.getCurrentUser();
+  }
+}
+
+// Data: Llamada
+final result = await getCurrentUserUseCase();
+
+if (result.isError) {
+  return result.propagateError<SomeOtherType>();
+}
+```
+
+#### UseCaseVoid (acciones sin retorno)
+
+```dart
+// Domain: Definición
+class LogoutUserUseCase extends UseCaseVoid<UserIdParams> {
+  final AuthRepository _repository;
+
+  LogoutUserUseCase(this._repository);
+
+  @override
+  DataResultVoid call(UserIdParams params) async {
+    return _repository.logout(params.id);
+  }
+}
+
+// Data: Llamada
+final result = await logoutUserUseCase(const UserIdParams(id: '123'));
+
+if (result.isSuccess) {
+  getIt<ToastContract>().showSuccess(message: 'Sesión cerrada');
+}
+```
+
+#### UseCaseVoidWithoutParams
+
+```dart
+// Domain: Definición
+class ClearCacheUseCase extends UseCaseVoidWithoutParams {
+  final CacheRepository _repository;
+
+  ClearCacheUseCase(this._repository);
+
+  @override
+  DataResultVoid call() async {
+    return _repository.clearCache();
+  }
+}
+
+// Data: Llamada
+await clearCacheUseCase();
+```
+
+### 4.4 Params con Freezed (Opcional pero Recomendado)
+
+Para casos complejos, usar `@freezed` en los params:
+
+```dart
+@freezed
+class LoginParams with _$LoginParams {
+  const factory LoginParams({
+    required String email,
+    required String password,
+    bool? rememberMe,
+  }) = _LoginParams;
+}
+
+// Uso
+class LoginUseCase extends UseCaseWithParams<User, LoginParams> {
+  // ...
+  
+  DataResult<User> call(LoginParams params) async {
+    // params.email, params.password, params.rememberMe
+  }
+}
+
+await loginUseCase(const LoginParams(
+  email: 'test@test.com',
+  password: '123456',
+  rememberMe: true,
+));
+```
+
+---
+
+## 5. ConnectivityEventBus
+
+**Singleton que expone streams de eventos para usar fuera del árbol de widgets.**
+
+```dart
+/// Ejemplo de uso:
+/// - Desde el cliente HTTP (interceptores)
+/// - Desde servicios en segundo plano
+/// - Para compartir estado entre widgets no relacionados
+
+class ConnectivityEventBus {
+  final _connectivityStream = BehaviorSubject<bool>.seeded(true);
+  
+  static final ConnectivityEventBus instance = ConnectivityEventBus._();
+  
+  Stream<bool> get connectivityStream => _connectivityStream.stream;
+  bool get isConnected => _connectivityStream.value;
+  
+  void updateStatus(bool isConnected) {
+    _connectivityStream.add(isConnected);
+  }
 }
 ```
 
 ---
 
-## 4. Feature Pattern
+## 6. Feature Pattern
 
 ### Estructura
 
@@ -228,6 +485,10 @@ features/{name}/
 │   ├── entities/
 │   ├── repositories/
 │   └── use_cases/
+│       ├── get_user_by_id_use_case.dart    # UseCaseWithParams<T>
+│       ├── get_current_user_use_case.dart   # UseCaseWithoutParams<T>
+│       ├── logout_user_use_case.dart       # UseCaseVoid<Params>
+│       └── clear_cache_use_case.dart        # UseCaseVoidWithoutParams
 └── presentation/
     ├── presentation.dart
     └── bloc/
@@ -238,13 +499,17 @@ features/{name}/
 
 - **Entity**: POJO puro con `factory Entity.mock()`
 - **Repository Interface**: `abstract class` con métodos que retornan `DataResult<T>`
-- **UseCase**: Extiende `UseCaseWithParams` o `UseCaseWithoutParams`
+- **UseCase**: Puede ser cualquiera de los 4 tipos:
+  - `UseCaseWithParams<T>` - Con parámetros y retorno
+  - `UseCaseWithoutParams<T>` - Sin parámetros, con retorno
+  - `UseCaseVoid<Params>` - Con parámetros, sin retorno
+  - `UseCaseVoidWithoutParams` - Sin parámetros ni retorno
 
 ### Data Layer
 
 - **Model**: `fromJson`, `toJson`, `toEntity()`
 - **DataSource**: `@RestApi` con Retrofit
-- **RepositoryImpl**: Implementa la interfaz, usa `DataStateFactory`
+- **RepositoryImpl**: Implementa la interfaz, usa `DataStateConvenience`
 
 ### Presentation Layer
 
@@ -255,19 +520,17 @@ features/{name}/
 
 ---
 
-## 5. Inyección de Dependencias
+## 7. Inyección de Dependencias
 
 ```dart
 void setupInjector() {
   // Singletons globales
   getIt.registerSingleton<SharedPreferenceHelper>(SharedPreferenceHelper.instance);
   getIt.registerSingleton<ToastContract>(ToastHelper.instance);
+  getIt.registerSingleton<ConnectivityEventBus>(ConnectivityEventBus.instance);
 
   // Clientes HTTP
   getIt.registerSingleton<AppClient>(AppClient(...));
-
-  // BLoCs globales
-  getIt.registerLazySingleton<ConnectivityBloc>(ConnectivityBloc());
 
   // Features
   payments_dependencies();
@@ -277,16 +540,37 @@ void setupInjector() {
 Por feature:
 ```dart
 void payments_dependencies() {
-  getIt.registerFactory<PaymentsDataSource>(() => PaymentsDataSource(getIt<AppClient>().dio));
-  getIt.registerFactory<PaymentsRepository>(() => PaymentsRepositoryImpl(...));
-  getIt.registerFactory<GeneratePaymentLinkUseCase>(() => GeneratePaymentLinkUseCase(...));
-  getIt.registerLazySingleton<PaymentBloc>(() => PaymentBloc(...));
+  // Data Sources
+  getIt.registerFactory<PaymentsDataSource>(
+    () => PaymentsDataSource(getIt<AppClient>().dio),
+  );
+  
+  // Repositories
+  getIt.registerFactory<PaymentsRepository>(
+    () => PaymentsRepositoryImpl(getIt<PaymentsDataSource>()),
+  );
+  
+  // UseCases
+  getIt.registerFactory<GetPaymentLinkUseCase>(
+    () => GetPaymentLinkUseCase(getIt<PaymentsRepository>()),
+  );
+  getIt.registerFactory<CancelPaymentUseCase>(
+    () => CancelPaymentUseCase(getIt<PaymentsRepository>()),
+  );
+  
+  // BLoCs
+  getIt.registerLazySingleton<PaymentBloc>(
+    () => PaymentBloc(
+      getPaymentLinkUseCase: getIt<GetPaymentLinkUseCase>(),
+      cancelPaymentUseCase: getIt<CancelPaymentUseCase>(),
+    ),
+  );
 }
 ```
 
 ---
 
-## 6. Main Entry Point
+## 8. Main Entry Point
 
 ```dart
 void main() async {
@@ -301,7 +585,7 @@ void main() async {
 
 ---
 
-## 7. App Root
+## 9. App Root
 
 ```dart
 class App extends StatelessWidget {
@@ -312,16 +596,11 @@ class App extends StatelessWidget {
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(clampedScale)),
       child: ToastificationWrapper(
-        child: MultiBlocProvider(
-          providers: [
-            BlocProvider<ConnectivityBloc>(create: (_) => getIt<ConnectivityBloc>()),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.themeLight,
-            initialRoute: Routes.initialRoute,
-            routes: Routes.routes,
-            onGenerateRoute: Routes.onGenerateRoute,
-          ),
+        child: MaterialApp(
+          theme: AppTheme.themeLight,
+          initialRoute: Routes.initialRoute,
+          routes: Routes.routes,
+          onGenerateRoute: Routes.onGenerateRoute,
         ),
       ),
     );
@@ -329,15 +608,25 @@ class App extends StatelessWidget {
 }
 ```
 
+> **Nota:** No se usa ConnectivityBloc en App. En su lugar, usar `ConnectivityEventBus.instance.connectivityStream` con `StreamBuilder` o `context.watch<ConnectivityEventBus>`.
+
 ---
 
-## 8. Checklist Nuevo Feature
+## 10. Checklist Nuevo Feature
 
 ```
 □ 1. Crear carpeta lib/features/{feature_name}/
-□ 2. Domain: entity, repository interface, use cases + params
-□ 3. Data: data source (@RestApi), models (fromJson/toJson/toEntity), repository impl
-□ 4. Presentation: bloc/event/state + StateX extension
+□ 2. Domain: 
+   □ entity (con factory .mock())
+   □ repository interface (métodos retornan DataResult<T>)
+   □ use cases (seleccionar el tipo correcto de UseCase)
+□ 3. Data: 
+   □ data source (@RestApi con Retrofit)
+   □ models (fromJson/toJson/toEntity)
+   □ repository impl (usa DataStateConvenience)
+□ 4. Presentation: 
+   □ bloc/event/state (@freezed)
+   □ StateX extension (verificadores)
 □ 5. dependencies/{name}_dependencies.dart
 □ 6. Registrar en setupInjector()
 □ 7. flutter pub run build_runner build --delete-conflicting-outputs
@@ -346,7 +635,7 @@ class App extends StatelessWidget {
 
 ---
 
-## 9. Code Generation
+## 11. Code Generation
 
 ```bash
 # Una vez
@@ -358,14 +647,71 @@ flutter pub run build_runner watch --delete-conflicting-outputs
 
 ---
 
-## 10. ToastContract
+## 12. ToastContract
 
-Interfaz abstracta en `core/contracts/toast_contract/` implementada por `ToastHelper`.
+Interfaz abstracta en `core/contracts/toast_contract.dart` implementada por `ToastHelper`.
 
 Uso:
 ```dart
 getIt<ToastContract>().showSuccess(message: 'Operación exitosa');
-getIt<ToastContract>().showError(message: state.errorMessage);
+getIt<ToastContract>().showError(message: state.userMessageOrNull ?? 'Error');
 ```
 
 Requisito: `ToastificationWrapper` debe envolver el `MaterialApp`.
+
+---
+
+## 13. Reglas de Limpieza de Estructura
+
+Antes de generar código, verificar:
+
+1. **No crear carpetas innecesarias**: Si una carpeta solo tendrá un archivo, considerar ponerlo directamente en el nivel superior
+2. **Eliminar carpetas vacías**: Después de generar, verificar que no haya carpetas sin archivos
+3. **Barrel exports**: Cada carpeta debe tener un archivo `.dart` que re-exporte su contenido
+
+Ejemplo de carpeta innecesaria:
+```
+❌ contracts/
+    └── toast_contract/
+        └── toast_contract.dart
+
+✅ contracts/
+    └── toast_contract.dart
+```
+
+---
+
+## 14. Resumen de Tipos de UseCase
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                           GUÍA RÁPIDA DE USECASE                           │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  ¿Retorna valor?        │  ¿Requiere parámetros?                          │
+│         │               │         │                                        │
+│         ▼               │         ▼                                        │
+│    ┌─────────┐         │    ┌─────────┐                                   │
+│    │   SÍ    │         │    │   SÍ    │  → UseCaseWithParams<T>          │
+│    └─────────┘         │    └─────────┘     ej: GetUserById(id)            │
+│                        │                                               │
+│         │              │         │                                        │
+│         ▼              │         ▼                                        │
+│    ┌─────────┐         │    ┌─────────┐                                   │
+│    │   NO    │         │    │   SÍ    │  → UseCaseVoid<Params>           │
+│    └─────────┘         │    └─────────┘     ej: DeleteUser(id)             │
+│                        │                                               │
+│         │              │         │                                        │
+│         ▼              │         ▼                                        │
+│    ┌─────────┐         │    ┌─────────┐                                   │
+│    │   SÍ    │         │    │   NO    │  → UseCaseWithoutParams<T>        │
+│    └─────────┘         │    └─────────┘     ej: GetCurrentUser()          │
+│                        │                                               │
+│         │              │         │                                        │
+│         ▼              │         ▼                                        │
+│    ┌─────────┐         │    ┌─────────┐                                   │
+│    │   NO    │         │    │   NO    │  → UseCaseVoidWithoutParams      │
+│    └─────────┘         │    └─────────┘     ej: ClearCache()              │
+│                        │                                               │
+└────────────────────────────────────────────────────────────────────────────┘
+```
