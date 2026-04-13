@@ -3,7 +3,7 @@ name: blueprint-flutter-clean
 description: Blueprint de arquitectura Flutter Clean Architecture - Estructura completa del proyecto AppCobranza con DataState, Freezed, BLoC, GetIt y más
 ---
 
-# Blueprint: Arquitectura Flutter — AppCobranza (Exitus)
+# Blueprint: Arquitectura Flutter
 
 > Documento de especificación técnica para replicar el boilerplate de este proyecto desde cero.
 
@@ -97,7 +97,7 @@ lib/
 │   │   │   ├── token_interceptor.dart
 │   │   │   └── logger_interceptor.dart
 │   │   └── response_model/
-│   │       └── response_model.dart   # Wrapper genérico de respuesta API
+│   │   │       └── response_model.dart   # Wrapper genérico de respuesta API
 │   └── utils/
 │       ├── utils.dart
 │       ├── formatters/
@@ -507,8 +507,32 @@ features/{name}/
 
 ### Data Layer
 
+> ⚠️ **IMPORTANTE**: Los DataSources DEBEN implementarse con **Retrofit**.
+> - Usar `@RestApi()` y anotaciones `@POST`, `@GET`, `@PUT`, `@DELETE`, etc.
+> - Incluir la línea `part '{feature_name}_data_source.g.dart';` al inicio del archivo (después de los imports)
+> - Esto permite que build_runner genere el archivo `.g.dart` necesario para la compilación
+
+**Ejemplo de DataSource con Retrofit:**
+```dart
+import 'package:dio/dio.dart';
+import 'package:retrofit/retrofit.dart';
+import 'package:stoki/features/auth/data/models/auth_model.dart';
+
+part 'auth_data_source.g.dart';
+
+@RestApi()
+abstract class AuthDataSource {
+  factory AuthDataSource(Dio dio) = _AuthDataSource;
+
+  @POST('/auth/login')
+  Future<AuthModel> login(
+    @Field('email') String email,
+    @Field('password') String password,
+  );
+}
+```
+
 - **Model**: `fromJson`, `toJson`, `toEntity()`
-- **DataSource**: `@RestApi` con Retrofit
 - **RepositoryImpl**: Implementa la interfaz, usa `DataStateConvenience`
 
 ### Presentation Layer
@@ -621,7 +645,8 @@ class App extends StatelessWidget {
    □ repository interface (métodos retornan DataResult<T>)
    □ use cases (seleccionar el tipo correcto de UseCase)
 □ 3. Data: 
-   □ data source (@RestApi con Retrofit)
+   □ data source (@RestApi con Retrofit) ← OBLIGATORIO
+   □ incluir: part '{feature_name}_data_source.g.dart'; ← OBLIGATORIO
    □ models (fromJson/toJson/toEntity)
    □ repository impl (usa DataStateConvenience)
 □ 4. Presentation: 
@@ -635,14 +660,30 @@ class App extends StatelessWidget {
 
 ---
 
-## 11. Code Generation
+## 11. Code Generation (OBLIGATORIO)
+
+> ⚠️ **IMPORTANTE**: Los DataSources usan Retrofit que requiere generación de código. Este paso es **OBLIGATORIO** después de crear o modificar DataSources.
 
 ```bash
 # Una vez
 flutter pub run build_runner build --delete-conflicting-outputs
 
-# Watch mode
+# Watch mode (recomendado durante desarrollo)
 flutter pub run build_runner watch --delete-conflicting-outputs
+```
+
+### ¿Por qué es necesario?
+
+1. Los DataSources usan `@RestApi` y `@POST`, `@GET`, etc. de Retrofit
+2. Deben incluir la línea `part '{feature_name}_data_source.g.dart';`
+3. Esto genera automáticamente el archivo `*.g.dart` con las implementaciones
+4. Sin este paso, el código NO compilará
+
+### Errores comunes si no se ejecuta
+
+```
+Error: Target of URI hasn't been generated: 'feature/data/datasources/feature_data_source.g.dart'
+Error: The name '_FeatureDataSource' isn't a type and can't be used in a redirected constructor.
 ```
 
 ---

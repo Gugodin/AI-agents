@@ -3,7 +3,7 @@ name: feature-creator
 description: Generador de features completo (Domain, Data, Presentation) siguiendo el estándar de Clean Architecture para Flutter
 ---
 
-# Skill: Generador de Features Flexible (v2.2)
+# Skill: Generador de Features Flexible (v2.3)
 
 ## 🎯 Objetivo
 Generar un feature completo (Domain, Data, Presentation) siguiendo el estándar de Clean Architecture. La prioridad es la fidelidad al JSON proporcionado, dejando las transformaciones complejas para casos específicos.
@@ -18,7 +18,8 @@ Si el usuario escribe **"Generaré un feature"** o **"Generaremos un nuevo featu
 > - **BaseUrl**: https://learn.microsoft.com/es-es/intune/configmgr/core/clients/deploy/about-client-settings
 > - **Body/Params**: [JSON de parámetros]
 > - **Observaciones**: [Lógica especial: Ej. Monto * 100, Split de strings, campos 'SIEMPRE', etc.]
-> - **Response**: [JSON esperado]"
+> - **Response**: [JSON esperado]
+> - **Implementación**: ¿Deseas que genere el **cascaron** (sin implementación) o el feature **completo** (con lógica implementada)?"
 
 ## 🏗️ Reglas Arquitectónicas
 
@@ -27,12 +28,44 @@ Si el usuario escribe **"Generaré un feature"** o **"Generaremos un nuevo featu
     - Métodos de serialización: `fromJson` y `toJson`.
     - Método de transformación: **`toEntity()`**, el cual debe mapear cada propiedad del modelo a su correspondiente en la `Entity` del dominio.
 - **Transformaciones**: Solo si se especifica en **Observaciones**, el agente debe aplicar lógica adicional (como splits o cálculos) dentro del `Model` o el `RepositoryImpl`.
-- **Retrofit**: Si el campo **BaseUrl** de la plantilla tiene valor, úsalo en `@RestApi(baseUrl: "...")`. Si está vacío, no declares `baseUrl` en la anotación.
-- **Manejo de Errores**: Uso obligatorio de `DataStateFactory` con un `idError` único en los bloques catch del `RepositoryImpl`.
+- **DataSource con Retrofit**: 
+    - Usar `@RestApi()` y anotaciones `@POST`, `@GET`, etc.
+    - Incluir `part 'nombre_data_source.g.dart';`
+    - Si **BaseUrl** tiene valor, usar `@RestApi(baseUrl: "...")`
+- **⚠️ IMPORTANTE - Code Generation**: Después de crear el DataSource con Retrofit, **DEBE** ejecutarse:
+    ```bash
+    flutter pub run build_runner build --delete-conflicting-outputs
+    ```
+    Sin este paso, el código NO compilará porque el archivo `.g.dart` no se generará.
 
 ### 2. Capa de Dominio (Domain)
 - **Entities**: POJOS puros con un `factory Entity.mock()` para facilitar el uso de Skeletons en la UI.
-- **UseCases**: Deben extender de `UseCaseWithParams` o `UseCaseWithoutParams` usando `DataResult<T>`.
+- **UseCases**: Deben extender de `UseCaseWithParams`, `UseCaseWithoutParams`, `UseCaseVoid` o `UseCaseVoidWithoutParams` usando `DataResult<T>`.
+- **Params**: Los parámetros del UseCase deben definirse **DENTRO del mismo archivo** del UseCase, justo después de la clase del UseCase. NO crear archivos separados para los params.
+
+  **Estructura correcta:**
+  ```dart
+  class LoginUseCase extends UseCaseWithParams<User, LoginParams> {
+    final AuthRepository _repository;
+
+    LoginUseCase(this._repository);
+
+    @override
+    DataResult<User> call(LoginParams params) async {
+      return await _repository.login(params.email, params.password);
+    }
+  }
+
+  class LoginParams {
+    final String email;
+    final String password;
+
+    const LoginParams({
+      required this.email,
+      required this.password,
+    });
+  }
+  ```
 
 ### 3. Capa de Presentación (BLoC & UI)
 - **Estados Granulares (Recomendado)**: Si el feature maneja múltiples acciones, usar booleanos específicos (ej: `isFetchingList`, `isExecutingAction`). Para features simples, se permite un `isLoading` único.
@@ -47,3 +80,56 @@ Si el usuario escribe **"Generaré un feature"** o **"Generaremos un nuevo featu
 ## 📝 Reglas de Lógica Especial
 - **Hard-Coding**: Parámetros marcados como "SIEMPRE" se implementan directamente en la capa de datos.
 - **Flexibilidad**: El agente debe interpretar las "Observaciones" como órdenes prioritarias que sobresalen del mapeo estándar del JSON.
+
+## 🏗️ Modo Cascaron (Skeleton)
+
+Si el usuario indica que desea generar **"solo el cascaron"** o **"sin implementación"**, el agente debe:
+
+1. **Crear la estructura completa** del feature (Domain, Data, Presentation)
+2. **NO implementar la lógica interna** - dejar los métodos vacíos o con `throw UnimplementedError()`
+3. **SÍ incluir**:
+   - Entity con `factory Entity.mock()`
+   - Repository interface con firmas de métodos
+   - UseCases con la estructura correcta (clase + params en mismo archivo)
+   - DataSource con Retrofit (anotaciones @Get, @Post, etc.)
+   - Models con `fromJson`, `toJson`, `toEntity()`
+   - RepositoryImpl con estructura pero sin lógica
+   - BLoC con eventos y estados definidos
+   - Archivo de dependencias
+
+**Ejemplo de UseCase en modo cascaron:**
+```dart
+class LoginUseCase extends UseCaseWithParams<AuthEntity, LoginParams> {
+  final AuthRepository _repository;
+
+  LoginUseCase(this._repository);
+
+  @override
+  DataResult<AuthEntity> call(LoginParams params) async {
+    // TODO: Implementar login
+    throw UnimplementedError('LoginUseCase - Implementar lógica de login');
+  }
+}
+
+class LoginParams {
+  final String email;
+  final String password;
+
+  const LoginParams({
+    required this.email,
+    required this.password,
+  });
+}
+```
+
+**El agente debe preguntarle al usuario:** "¿Deseas que genere el cascaron completo (sin implementación) o el feature completo (con lógica implementada)?"
+
+## ⚠️ Recordatorio Post-Creación
+
+Después de generar un feature con DataSources Retrofit, el agente DEBE informar al usuario:
+
+> "✅ Feature creado exitosamente. 
+> ⚠️ IMPORTANTE: Para que el código compile, necesitas ejecutar:
+> `flutter pub run build_runner build --delete-conflicting-outputs`
+> 
+> Esto generará los archivos `.g.dart` necesarios para los DataSources con Retrofit."
