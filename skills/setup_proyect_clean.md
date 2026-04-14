@@ -41,7 +41,14 @@ Configurar el widget `App` incluyendo:
 - **MultiBlocProvider**: Proveer BLoCs globales registrados en GetIt.
 
 ### 4. Core Foundation & Helpers
-- **DataState & Factory**: Sistema de estados y mapeo de errores `fromDioException`.
+- **DataState & Factory**: Sistema de estados con `@freezed sealed class` Y **OBLIGATORIO** incluir `DataStateFactory` con:
+  - `fromDioException(DioException, ...)` - factory estático para errores HTTP
+  - `fromException(Exception, ...)` - factory estático para errores genéricos
+  - `success(T data)` - factory estático para éxito
+  - Include mapping de DioException a mensajes user-friendly en el factory
+- **Extensions Obligatorias**:
+  - `DataStateX` - verificadores (`isSuccess`, `isError`, etc.) y accesores (`dataOrNull`, `userMessageOrNull`)
+  - `DataStatePropagateError` - método `propagateError<R>()` para cambiar tipo preservando error
 - **SharedPreferenceHelper**: Base con soporte para **Mixins** por dominio.
 - **ApiClient**: Configuración de `Dio` con interceptores.
 
@@ -59,3 +66,99 @@ Según los módulos opcionales elegidos, el agente debe proporcionar:
 - **Consistencia de Imports**: Todos los archivos generados deben usar el **Nombre del Proyecto** proporcionado para los imports internos (`import 'package:nombre/...'`).
 - **Modularidad**: Tratar las configuraciones nativas como opcionales; solo generarlas si el paquete correspondiente está en el pubspec.
 - **Barrel Exports**: Mantener la convención de archivos `.dart` que re-exportan el contenido de sus carpetas.
+
+## 🔍 VERIFICACIÓN FINAL (OBLIGATORIA)
+Antes de reportar "completado", el agente DEBE ejecutar esta verificación. Si algo falta, debe crearlo antes de finalizar.
+
+### Checklist de Componentes Obligatorios
+
+#### 1. DataState (lib/core/foundation/data_state/data_state.dart)
+- [ ] `@freezed sealed class DataState<T>` con:
+  - [ ] `DataState.success(T data)`
+  - [ ] `DataState.dioError({required DioException error, ...})`
+  - [ ] `DataState.generalError({required String userMessage, ...})`
+- [ ] `DataStateFactory` con:
+  - [ ] `fromDioException(DioException, ...)` - incluye mapping a mensajes user-friendly
+  - [ ] `fromException(Exception, ...)`
+  - [ ] `success(T data)`
+- [ ] Extension `DataStateX`:
+  - [ ] `isSuccess`, `isDioError`, `isGeneralError`, `isError`
+  - [ ] `dataOrNull`, `userMessageOrNull`, `technicalMessageOrNull`
+- [ ] Extension `DataStatePropagateError`:
+  - [ ] `propagateError<R>()` - cambia tipo preservando error
+
+#### 2. UseCases (lib/core/foundation/use_case/use_case.dart)
+- [ ] `UseCaseWithParams<T, Params>`
+- [ ] `UseCaseVoid<Params>`
+- [ ] `UseCaseWithoutParams<T>`
+- [ ] `UseCaseVoidWithoutParams`
+
+#### 3. Helpers (lib/core/helpers/)
+- [ ] `SharedPreferenceHelper` con soporte para mixins por dominio
+- [ ] `SecureStorageHelper`
+- [ ] `ToastHelper` (implementando `ToastContract`)
+- [ ] `PermissionHelper`
+
+#### 4. Core
+- [ ] `ConnectivityEventBus` (Singleton con stream)
+- [ ] `AppBlocObserver`
+- [ ] `AppClient` con interceptores (Logger, Token, Connectivity)
+- [ ] `DirectClient`
+
+#### 5. Injector (lib/injector/injector.dart)
+- [ ] `setupInjector()` con:
+  - [ ] Singleton de SharedPreferenceHelper
+  - [ ] Singleton de SecureStorageHelper
+  - [ ] Singleton de PermissionHelper
+  - [ ] Singleton de ToastContract
+  - [ ] Singleton de ConnectivityEventBus
+  - [ ] AppClient y DirectClient
+  - [ ] `await getIt<SharedPreferenceHelper>().init()`
+  - [ ] `await getIt<ConnectivityEventBus>().init()`
+
+#### 6. App y main.dart
+- [ ] `StokiApp` (o nombre del proyecto) con:
+  - [ ] `ToastificationWrapper`
+  - [ ] MediaQuery textScaler clamp (1.0 a 1.3)
+- [ ] `main.dart` con orden correcto:
+  - [ ] `WidgetsFlutterBinding.ensureInitialized()`
+  - [ ] `setupInjector()`
+  - [ ] `Bloc.observer = AppBlocObserver()`
+  - [ ] `runApp()`
+
+#### 7. Config (lib/config/)
+- [ ] `AppTheme` con `AppColors`
+- [ ] `Routes` con `onGenerateRoute`
+
+#### 8. Configuración Nativa
+- [ ] Android:
+  - [ ] `AndroidManifest.xml` con permisos (INTERNET, ACCESS_NETWORK_STATE, etc.)
+  - [ ] `minSdk = 23` en build.gradle.kts
+- [ ] iOS:
+  - [ ] `Info.plist` con permisos de privacidad (Location, Camera, FaceID, etc.)
+  - [ ] Orientación portrait only
+
+#### 9. Build
+- [ ] `flutter pub get` exitoso
+- [ ] `flutter pub run build_runner build --delete-conflicting-outputs` exitoso
+- [ ] `flutter analyze` con 0 errores
+
+### 📋 Prompt de Finalización
+Al terminar, el agente DEBE mostrar:
+
+```
+✅ Proyecto [nombre] configurado exitosamente.
+
+Resumen de verificación:
+- DataState: ✓ Completo
+- UseCases: ✓ Completo  
+- Helpers: ✓ Completo
+- Core: ✓ Completo
+- Injector: ✓ Completo
+- App: ✓ Completo
+- Config: ✓ Completo
+- Nativo: ✓ Completo
+- Build: ✓ Sin errores
+
+¿Deseas que inicie con la primera feature? [Auth] [Home] [Otra]
+```
