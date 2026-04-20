@@ -1,9 +1,9 @@
 ---
-name: domain-specialist
-description: Reglas para la creacion de Entidades inmutables y Contratos de Repositorio en la capa de Domain.
+name: domain-entity-specialist
+description: Reglas para la creacion de Entidades inmutables en la capa de Domain.
 ---
 
-# Skill: Domain Specialist - El Corazon del Negocio
+# Skill: Domain Entity Specialist - El Corazon del Negocio
 
 ## 1. Definicion de Entidades (Entities)
 Las entidades son los modelos de datos fundamentales que representan la logica de negocio. Al ser el "corazon" del sistema, deben estar escritas en **Dart Nativo** para asegurar que el dominio sea agnostico, ligero y facil de testear.
@@ -37,34 +37,23 @@ class UserEntity {
     required this.email,
   });
 }
- ```
+```
 
-## 2. Contratos de Repositorio (Interfaces)
-El repositorio en el dominio es una clase abstracta que define **qué** puede hacer la feature, sin preocuparse por el **cómo** se implementa (si es via REST, GraphQL o base de datos local).
+### 2. Reglas de Verificacion para el Auditor (Entity Edition)
+El Auditor debe rechazar cualquier entidad que presente "fugas" de otras capas o que rompa la inmutabilidad del dominio.
 
-### 2.1 Estandarizacion de Retornos (DataResult)
-Para mantener la consistencia con el sistema de estados y errores de la arquitectura Segi, es OBLIGATORIO que todos los metodos utilicen los `typedefs` globales:
+## 2.1 Pureza de Tipos y Primitivos
+Regla del Primitivo: El Auditor debe verificar que se prefieran tipos primitivos de Dart (double, int, String, bool) para representar datos de soporte (como coordenadas o fechas en int o String) en lugar de clases de librerías externas o de la capa de infraestructura.
+Prohibición de Frameworks: Cualquier importación de package:flutter/... es motivo de RECHAZO inmediato. El dominio debe poder ejecutarse en un entorno puro de Dart.
 
-* **DataResult<T>**: Se usa para operaciones asincronas que devuelven una Entidad o lista de ellas.
-* **DataResultVoid**: Se usa para acciones que no devuelven datos, como eliminar un registro o cerrar sesion.
+## 2.2 Integridad Estructural
+Inmutabilidad Estricta: Se debe comprobar que TODAS las propiedades sean final. Si existe una sola variable sin final, la entidad no es válida.
+Constructor Constante: La ausencia de la palabra clave const en el constructor principal se considera un error de optimización y seguridad de datos.
 
-### 2.2 Ubicacion y Nomenclatura
-* **Directorio**: `lib/features/[feature_name]/domain/repositories/`.
-* **Nombre de Archivo**: `[nombre]_repository.dart` (ej: `auth_repository.dart`).
-* **Nombre de Clase**: `[Nombre]Repository` (ej: `AuthRepository`).
+## 2.3 Blindaje contra Serialización
+Cero JSON: El Auditor debe buscar palabras clave como fromJson, toJson, Map<String, dynamic> o cualquier mención a serialización. Si se encuentran, deben ser movidas a un Model en la capa de Data.
+Sin Generadores: No se permite el uso de @freezed, @JsonSerializable o @HiveType en esta sección. La entidad debe ser legible y editable sin necesidad de correr build_runner.
 
-### 2.3 Ejemplo de Implementacion
-```dart
-import '../../../../core/foundation/typedefs.dart';
-import '../entities/user_entity.dart';
-
-abstract class AuthRepository {
-  /// Realiza el inicio de sesion y retorna la entidad del usuario
-  DataResult<UserEntity> login({
-    required String username,
-    required String password,
-  });
-
-  /// Cierra la sesion activa en el dispositivo
-  DataResultVoid logout();
-}
+## 2.4 Nomenclatura y Ubicacion
+Sufijo Obligatorio: Todas las clases deben terminar estrictamente con el sufijo Entity (ej: UserEntity).
+Ubicación: El archivo debe residir exclusivamente en domain/entities/. Si está en la raíz de domain o en data, el Auditor debe ordenar su reubicación.
