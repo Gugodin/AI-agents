@@ -52,7 +52,16 @@ Si esto no se hace, los sub-agentes alucinarán los estándares y la arquitectur
 1. **Validacion de Nombre**: El Auditor debe confirmar que el nombre del proyecto no contenga palabras reservadas de Dart (ej: `void`, `class`, `test`).
 2. **Confirmacion de Org**: Si se uso el valor por defecto `com.[nombre]`, el Auditor debe verificar que el Agente lo haya notificado al usuario antes de proceder.
 3. **Bloqueo de Scaffolding**: Es un ERROR que el Agente comience a crear carpetas si el usuario aun no ha confirmado el resumen final de la entrevista.
-## 6. Fase de Compilacion Final (Terminal)
-Es MANDATORIO: Como ultimo paso del setup del proyecto, el Agente debe usar su herramienta `bash` en la ruta raiz del proyecto para:
-1. `flutter pub get` (Para instalar los modulos definidos).
-2. `dart run build_runner build --delete-conflicting-outputs` (Para generar el codigo de Freezed y resolver errores estaticos en DataState).
+## 7. Fase de Instalacion y Compilacion Final (Terminal)
+Es MANDATORIO: Como ultimo paso del setup del proyecto, el Agente debe usar su herramienta `bash` en la ruta raiz del proyecto para instalar las dependencias CORE de la Arquitectura Segi ANTES de compilar. 
+
+Ejecuta estrictamente estos comandos en orden:
+
+1. **Instalar dependencias de produccion:**
+   `flutter pub add freezed_annotation json_annotation dio get_it flutter_bloc equatable`
+2. **Instalar dependencias de desarrollo:**
+   `flutter pub add --dev build_runner freezed json_serializable`
+3. **Generar el codigo (Freezed/JSON):**
+   `dart run build_runner build --delete-conflicting-outputs`
+
+El Orquestador no puede dar por terminada la inicializacion sin confirmar que el pubspec.yaml tiene estos paquetes y que el build_runner se ejecuto sin errores.
