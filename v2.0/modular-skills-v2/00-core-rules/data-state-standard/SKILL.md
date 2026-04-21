@@ -8,6 +8,8 @@ description: Reglas obligatorias para el manejo de estados inmutables, trazabili
 Este documento define la estructura inmutable de los datos y el manejo de estados de la aplicacion. Es el estandar de oro para cualquier retorno de informacion en la capa de Data y Domain.
 
 ## 1. DataState (Inmutabilidad con Freezed)
+⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Este bloque debe copiarse integramente si vas a pedir a otro agente que cree o modifique este archivo.
+
 Es OBLIGATORIO el uso de @freezed para el manejo de estados de datos. No se permiten sealed classes nativas fuera de Freezed para garantizar la consistencia en el pattern matching y la inmutabilidad.
 
 ```dart
@@ -37,6 +39,8 @@ abstract class DataState<T> with _$DataState<T> {
 ```
 
 ## 1.1 DataStateFactory (Mapeo, Logging e IDs de Error)
+⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Si vas a delegar la creacion del DataStateFactory, debes pasar esta extension completa al sub-agente.
+
 La DataStateFactory es una extension que automatiza la creacion de estados de error, garantizando que todo fallo sea rastreable y amigable para el usuario final.
 
 ### Reglas de Mensajes e Identificadores (IDs)
@@ -178,6 +182,8 @@ DataResult<UserEntity> login(LoginParams params) async {
 ```
 
 ## 1.2 Extension de Conveniencia y Propagacion (DataStateConvenience)
+⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Si vas a pedir la creacion de este archivo a un sub-agente, debes inyectar este bloque obligatoriamente.
+
 Esta extension añade metodos de utilidad para simplificar la lectura de estados en la UI (BLoCs) y permitir la transferencia de errores entre capas sin generar ruido tecnico innecesario.
 
 ### Metodos de Verificacion y Acceso
@@ -229,6 +235,8 @@ extension DataStateConvenience<T> on DataState<T> {
 ```
 
 ## 2. Typedefs Globales (DataResult)
+⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Estos Typedefs y el VoidSuccess son inmutables. Pasalos al sub-agente explicitamente.
+
 Estandarizacion de las firmas de metodos en Repositorios y UseCases para asegurar un manejo de estados asincrono y consistente.
 
 ```dart

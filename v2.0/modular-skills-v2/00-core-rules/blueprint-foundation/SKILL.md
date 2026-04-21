@@ -8,6 +8,8 @@ description: Reglas de oro para la base de datos (DataState) y logica de negocio
 Este documento define las estructuras de datos y contratos de ejecucion obligatorios para todo el proyecto. Ningun agente puede desviarse de estas definiciones bajo ninguna circunstancia.
 
 ## 1. DataState (Inmutabilidad con Freezed)
+⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Este bloque debe copiarse integramente si vas a pedir a otro agente que cree o modifique este archivo.
+
 Es OBLIGATORIO el uso de @freezed para el manejo de estados de datos. No se permiten sealed classes nativas fuera de Freezed para evitar inconsistencias estructurales.
 
 ```dart
@@ -37,6 +39,8 @@ abstract class DataState<T> with _$DataState<T> {
 ```
 
 ## 1.1 DataStateFactory (Mapeo, Logging e IDs de Error)
+⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Si vas a delegar la creacion del DataStateFactory, debes pasar esta extension completa al sub-agente.
+
 La DataStateFactory es una extension que automatiza la creacion de estados de error, garantizando que todo fallo sea rastreable y amigable para el usuario final.
 
 ### Reglas de Mensajes e Identificadores (IDs)
@@ -158,6 +162,8 @@ try {
 ```
 
 ## 1.2 Extension de Conveniencia y Propagacion (DataStateConvenience)
+⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Si vas a pedir la creacion de este archivo a un sub-agente, debes inyectar este bloque obligatoriamente.
+
 Esta extension añade metodos de utilidad para simplificar la lectura de estados en la UI (BLoCs) y permitir la transferencia de errores entre capas sin generar ruido tecnico innecesario.
 
 ### Metodos de Verificacion y Acceso
@@ -249,6 +255,8 @@ Para mantener la consistencia en la capa de Domain, se deben implementar exclusi
 | UseCaseVoidWithoutParams | Sin parametros ni retorno | ClearCache, SyncData |
 
 ### 2.1 Implementacion Base
+⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Este contrato es la base de todos los UseCases. El sub-agente debe usar esta implementacion abstracta.
+
 Todos los UseCases deben seguir estas firmas de contrato para asegurar que el retorno sea siempre un DataResult:
 
 ```dart
@@ -274,6 +282,8 @@ abstract class UseCaseVoidWithoutParams {
 ```
 
 ## 3. Typedefs Globales (DataResult)
+⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Estos Typedefs y el VoidSuccess son inmutables. Pasalos al sub-agente explicitamente.
+
 Estandarizacion de las firmas de metodos en Repositorios y UseCases para asegurar un manejo de estados asincrono y consistente.
 
 ```dart

@@ -1,6 +1,6 @@
-# Segi AI Agents v2.0
+# AI Agents v2.0
 
-Repositorio con el equipo de agentes de IA especializados en la Arquitectura Segi v2.0 para proyectos Flutter con Clean Architecture. Estos agentes están diseñados para trabajar dentro de **OpenCode** y colaborar entre sí para generar código de alta calidad de forma autónoma.
+Repositorio con el equipo de agentes de IA especializados en la Arquitectura v2.0 para proyectos Flutter con Clean Architecture. Estos agentes están diseñados para trabajar dentro de **OpenCode** y colaborar entre sí para generar código de alta calidad de forma autónoma.
 
 ## El Equipo
 

@@ -9,7 +9,7 @@ description: Reglas para la creacion de Contratos de Repositorio (interfaces abs
 El repositorio en el dominio es una clase abstracta que define **que** puede hacer la feature, sin preocuparse por el **como** se implementa (si es via REST, GraphQL o base de datos local).
 
 ### 1.1 Estandarizacion de Retornos (DataResult)
-Para mantener la consistencia con el sistema de estados y errores de la arquitectura Segi, es OBLIGATORIO que todos los metodos utilicen los `typedefs` globales:
+Para mantener la consistencia con el sistema de estados y errores de la arquitectura, es OBLIGATORIO que todos los metodos utilicen los `typedefs` globales:
 
 * **DataResult<T>**: Se usa para operaciones asincronas que devuelven una Entidad o lista de ellas.
 * **DataResultVoid**: Se usa para acciones que no devuelven datos, como eliminar un registro o cerrar sesion.

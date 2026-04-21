@@ -44,7 +44,7 @@ description: Blueprint de arquitectura Flutter Clean Architecture - Estructura c
 lib/
 ├── main.dart                         # Entry point: setupInjector(), BlocObserver, runApp()
 ├── app/
-│   └── segi_app.dart                 # MaterialApp: theme, routes, onGenerateRoute
+│   └── {nombre_del_proyecto}_app.dart                 # MaterialApp: theme, routes, onGenerateRoute
 ├── gen/
 │   └── assets.gen.dart               # Auto-generado por flutter_gen
 ├── config/

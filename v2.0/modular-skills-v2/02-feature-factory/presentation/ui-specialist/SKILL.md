@@ -59,7 +59,7 @@ class LoginView extends StatelessWidget {
 La comunicacion entre el BLoC y la UI debe ser clara y unidireccional. Dado que el proyecto utiliza una estrategia de provision centralizada, la UI se enfoca principalmente en el consumo de estados.
 
 ### 2.1 Provision de Blocs (Global vs Local)
-* **Provision Global (Estandar)**: Por regla general, los BLoCs se definen en el widget raiz (`SegiApp`) mediante un `MultiBlocProvider`. Esto garantiza que los estados esten disponibles en todo el arbol de navegacion sin necesidad de reinyeccion manual.
+* **Provision Global (Estandar)**: Por regla general, los BLoCs se definen en el widget raiz (`{nombre_del_proyecto}_App`) mediante un `MultiBlocProvider`. Esto garantiza que los estados esten disponibles en todo el arbol de navegacion sin necesidad de reinyeccion manual.
 * **Provision Local (Excepcion)**: Solo se creara un `BlocProvider` a nivel de widget/pantalla en casos especiales donde el BLoC requiera parametros unicos del constructor de la vista o tenga un ciclo de vida estrictamente efimero.
 
 ### 2.2 BlocBuilder: El "Pintor" de la UI

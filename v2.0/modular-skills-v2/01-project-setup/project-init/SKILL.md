@@ -1,6 +1,6 @@
 ---
 name: project-init
-description: Protocolo de entrevista inicial para la configuracion personalizada de proyectos Flutter (Arquitectura Segi).
+description: Protocolo de entrevista inicial para la configuracion personalizada de proyectos Flutter (Arquitectura).
 ---
 
 # Skill: Project Initialization - El Guion del Entrevistador
@@ -31,7 +31,7 @@ Para agilizar la entrevista, el Agente debe permitir que el usuario omita cierto
 
 1. **Organizacion (Org)**: Si el usuario no proporciona un identificador de organizacion, el Agente debe generar uno automaticamente siguiendo el patron `com.[nombre_del_proyecto]`.
     * Ejemplo: Si el proyecto se llama `stoki_pos`, el Bundle ID sera `com.stoki_pos`.
-2. **Entornos**: Si se omite, se asumira por defecto que el proyecto requiere la triada de Flavors (`dev`, `qa`, `prod`) para cumplir con el estandar de la arquitectura Segi.
+2. **Entornos**: Si se omite, se asumira por defecto que el proyecto requiere la triada de Flavors (`dev`, `qa`, `prod`) para cumplir con el estandar de la arquitectura.
 3. **Modulos Core**: Si el usuario no selecciona ninguno, el proyecto se creara unicamente con la estructura de carpetas base (Clean Scaffolding), sin dependencias adicionales de hardware o persistencia.
 
 ## 4. Mapeo de Decisiones para Agentes Secundarios
@@ -41,7 +41,18 @@ Una vez finalizada la entrevista, el Agente de Setup debe emitir una "Ficha de P
 * **Hacia scaffolding-dart**: Pasar el nombre del proyecto para configurar los imports y determinar si se crean los archivos `main_*.dart` segun los entornos seleccionados.
 * **Hacia dependencies-manager**: Lista de paquetes (pubspec.yaml) que deben instalarse segun los Modulos Core seleccionados (ej: flutter_bloc, get_it, dio, biometrics).
 
-## 5. Reglas de Verificacion para el Auditor (Init Edition)
+## 5. Protocolo de Orquestacion y Delegacion (PREVENCION DE ALUCINACIONES)
+ES UNA REGLA INQUEBRANTABLE: El Technical Lead / Agente de Setup NO DEBE asumir ningun conocimiento previo por parte de los agentes `general` o `feature-developer`. 
+Antes de delegar cualquier tarea de creacion de archivos core (como DataState o UseCases), el Orquestador ESTA OBLIGADO a:
+1. Cargar explícitamente los skills `blueprint-foundation` y `data-state-standard`.
+2. COPIAR Y PEGAR el texto/código exacto de esos skills directamente dentro del prompt que se le enviará al sub-agente.
+Si esto no se hace, los sub-agentes alucinarán los estándares y la arquitectura fallará.
+
+## 6. Reglas de Verificacion para el Auditor (Init Edition)
 1. **Validacion de Nombre**: El Auditor debe confirmar que el nombre del proyecto no contenga palabras reservadas de Dart (ej: `void`, `class`, `test`).
 2. **Confirmacion de Org**: Si se uso el valor por defecto `com.[nombre]`, el Auditor debe verificar que el Agente lo haya notificado al usuario antes de proceder.
 3. **Bloqueo de Scaffolding**: Es un ERROR que el Agente comience a crear carpetas si el usuario aun no ha confirmado el resumen final de la entrevista.
+## 6. Fase de Compilacion Final (Terminal)
+Es MANDATORIO: Como ultimo paso del setup del proyecto, el Agente debe usar su herramienta `bash` en la ruta raiz del proyecto para:
+1. `flutter pub get` (Para instalar los modulos definidos).
+2. `dart run build_runner build --delete-conflicting-outputs` (Para generar el codigo de Freezed y resolver errores estaticos en DataState).
