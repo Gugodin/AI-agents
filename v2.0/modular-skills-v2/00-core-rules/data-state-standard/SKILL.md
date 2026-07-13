@@ -1,254 +1,120 @@
 ---
 name: data-state-standard
-description: Reglas obligatorias para el manejo de estados inmutables, trazabilidad de errores y tipos globales
+description: Reglas obligatorias de uso, trazabilidad de errores y protocolos de manejo de estados en la capa de Data y Domain
 ---
 
-# Skill: Data State Standard - El ADN de los Datos
+# Skill: Data State Standard - Protocolos de Uso y Trazabilidad
 
-Este documento define la estructura inmutable de los datos y el manejo de estados de la aplicacion. Es el estandar de oro para cualquier retorno de informacion en la capa de Data y Domain.
+Este documento define las **reglas de uso** y los **protocolos de trazabilidad** para el sistema de estados de la arquitectura. Las definiciones de código (DataState, DataStateFactory, DataStateConvenience, Typedefs) residen en `blueprint-foundation` como fuente única.
 
-## 1. DataState (Inmutabilidad con Freezed)
-⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Este bloque debe copiarse integramente si vas a pedir a otro agente que cree o modifique este archivo.
+> **Referencia obligatoria**: Para las implementaciones de código, consultar `blueprint-foundation > Secciones 1, 1.1, 1.2 y 3`.
 
-Es OBLIGATORIO el uso de @freezed para el manejo de estados de datos. No se permiten sealed classes nativas fuera de Freezed para garantizar la consistencia en el pattern matching y la inmutabilidad.
+## 1. Principios de Trazabilidad de Errores
 
-```dart
-@freezed
-abstract class DataState<T> with _$DataState<T> {
-  const factory DataState.success(T data) = DataSuccess<T>;
+### 1.1 IDs de Error Unicos
+Cada punto de fallo en un `RepositoryImpl` debe tener un identificador unico que permita rastrear el error exacto en produccion:
 
-  const factory DataState.dioError({
-    required DioException error,
-    String? userMessage,
-    String? technicalMessage,
-    required String module,
-    required String file,
-    required String line,
-    required String stackTrace,
-  }) = DataDioError<T>;
+* **Formato**: `[FEATURE][NUMERO]` (ej: `AUTH01`, `USER05`, `INV03`)
+* **Unicidad**: Dentro del mismo repositorio, NUNCA se repite un ID
+* **Descriptividad**: El prefijo debe identificar la feature (AUTH, USER, INV, CAT, etc.)
+* **Secuencialidad**: Los IDs deben ser correlativos dentro de cada feature para facilitar el debugging
 
-  const factory DataState.generalError({
-    required String userMessage,
-    required String technicalMessage,
-    required String module,
-    required String file,
-    required String line,
-    required String stackTrace,
-  }) = DataGeneralError<T>;
+### 1.2 Formato de Mensajes al Usuario
+Todo `userMessage` que llega a la UI debe concatenar el ID de error al final:
+```
+"Mensaje descriptivo para el usuario (ERR_[ID])"
+```
+
+Ejemplos:
+* `"No pudimos encontrar lo que buscas (ERR_AUTH01)"`
+* `"Tus credenciales han expirado (ERR_LOGIN03)"`
+
+### 1.3 Logging Obligatorio
+Todo error debe disparar un `debugPrint` con formato visual que separe:
+* **Errores de Red (Dio)**: Tipo, codigo HTTP, URL, archivo, mensaje usuario, mensaje tecnico
+* **Errores Generales**: Archivo, mensaje usuario, mensaje tecnico, stacktrace
+
+## 2. Protocolo de Uso en RepositoryImpl
+
+### 2.1 Estructura Obligatoria de Try-Catch
+Todo metodo async en un `RepositoryImpl` debe seguir esta estructura:
+
+```
+try {
+  // 1. Ejecutar logica (llamar DataSource, helpers, etc.)
+  // 2. Validar ResponseModel.error si aplica
+  // 3. Retornar DataState.success con la entidad mapeada
+} on DioException catch (e, stackTrace) {
+  // Usar DataStateFactory.fromDioException con idError UNICO
+} catch (e, stackTrace) {
+  // Usar DataStateFactory.fromException con idError UNICO
 }
 ```
 
-## 1.1 DataStateFactory (Mapeo, Logging e IDs de Error)
-⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Si vas a delegar la creacion del DataStateFactory, debes pasar esta extension completa al sub-agente.
+### 2.2 Validacion de ResponseModel
+Cuando el DataSource retorna un `ResponseModel`, el repositorio DEBE:
+1. Verificar la propiedad `.error` del ResponseModel
+2. Si `error == true`: Retornar `DataState.generalError` con el mensaje de la API
+3. Si `error == false`: Transformar `.data` a la Entidad correspondiente y retornar `DataState.success`
 
-La DataStateFactory es una extension que automatiza la creacion de estados de error, garantizando que todo fallo sea rastreable y amigable para el usuario final.
+### 2.3 Campos Obligatorios en Cada Llamada a DataStateFactory
+Toda invocacion a `DataStateFactory.fromDioException` o `fromException` debe incluir:
 
-### Reglas de Mensajes e Identificadores (IDs)
-1. Unicidad: Cada llamada en el repositorio debe asignar un idError unico (ej: 'AUTH01', 'USER05') para identificar el punto exacto del fallo.
-2. Formato de Usuario: El mensaje final para el usuario (userMessage) DEBE concatenar el ID al final con el formato: "Mensaje de error (ERR_idError)".
-3. Logging Obligatorio: Todo error debe disparar un print en consola (debugPrint) con un formato visual claro que separe la informacion de Red (Dio) de los errores Generales.
+| Campo | Descripcion | Ejemplo |
+|-------|-------------|---------|
+| `module` | Nombre de la clase del repositorio | `'AuthRepositoryImpl'` |
+| `file` | Nombre del archivo | `'auth_repository_impl.dart'` |
+| `line` | Numero de linea del catch | `'89'` |
+| `stackTrace` | Stacktrace como String | `stackTrace.toString()` |
+| `idError` | ID unico del error | `'AUTH01'` |
 
-### Implementacion de la Fabrica (Extension)
+## 3. Protocolo de Propagacion en UseCases
+
+### 3.1 Regla de No-Duplicacion de Logs
+Cuando un UseCase orquestador consume otros UseCases, NUNCA debe volver a llamar a `DataStateFactory`. El log original ya fue generado en el repositorio.
+
+### 3.2 Uso de propagateError
+Si un sub-proceso falla (`result.isError`), se DEBE usar `propagateError<T>()` para transferir el error preservando la trazabilidad original:
+
 ```dart
-extension DataStateFactory<T> on DataState<T> {
-  static DataState<T> fromDioException<T>(
-    DioException e, {
-    required String module,
-    required String file,
-    required String line,
-    required String stackTrace,
-    required String idError,
-  }) {
-    final statusCode = e.response?.statusCode;
-    String userMessage;
-    String technicalMessage = 'DioException: ${e.type} - Status: $statusCode - ${e.message}';
-
-    switch (statusCode) {
-      case 404: userMessage = 'No pudimos encontrar lo que buscas'; break;
-      case 500: case 502: case 503:
-        userMessage = 'El servidor esta teniendo problemas. Intentalo en unos minutos'; break;
-      case 401: userMessage = 'Tus credenciales han expirado. Vuelve a iniciar sesion'; break;
-      case 403: userMessage = 'No tienes permisos para realizar esta accion'; break;
-      case 400: userMessage = 'Los datos enviados no son validos'; break;
-      default:
-        userMessage = 'Hay un problema con el servicio. Intentalo mas tarde';
-    }
-
-    userMessage = "$userMessage (ERR_$idError)";
-
-    _logDioError(e, userMessage, technicalMessage, module, file, line);
-
-    return DataState<T>.dioError(
-      error: e,
-      userMessage: userMessage,
-      technicalMessage: technicalMessage,
-      module: module,
-      file: file,
-      line: line,
-      stackTrace: stackTrace,
-    );
-  }
-
-  static DataState<T> fromException<T>({
-    required String message,
-    required String module,
-    required String file,
-    required String line,
-    required String stackTrace,
-    required String idError,
-  }) {
-    String userMessage = 'Algo salio mal en la aplicacion. Nuestro equipo fue notificado (ERR_$idError)';
-
-    _logGeneralError(message, userMessage, module, file, line, stackTrace);
-
-    return DataState<T>.generalError(
-      userMessage: userMessage,
-      technicalMessage: message,
-      module: module,
-      file: file,
-      line: line,
-      stackTrace: stackTrace,
-    );
-  }
-
-  static void _logDioError(DioException error, String userMessage, String techMsg, String module, String file, String line) {
-    debugPrint('''
-[ERROR DE RED EN $module]
---------------------------------------------------------------------------------
-Tipo:       DioException (${error.type})
-Codigo:     ${error.response?.statusCode ?? 'N/A'}
-URL:        ${error.requestOptions.path}
-Archivo:    $file:$line
-Usuario:    $userMessage
-Tecnico:    $techMsg
---------------------------------------------------------------------------------
-    ''');
-  }
-
-  static void _logGeneralError(String techMsg, String userMessage, String module, String file, String line, String stack) {
-    debugPrint('''
-[ERROR GENERAL EN $module]
---------------------------------------------------------------------------------
-Archivo:    $file:$line
-Usuario:    $userMessage
-Tecnico:    $techMsg
-Stacktrace: $stack
---------------------------------------------------------------------------------
-    ''');
-  }
+final result = await _subUseCase.call();
+if (result.isError) {
+  return result.propagateError<AllCatalogsEntity>();
 }
+final data = result.dataOrNull!;
 ```
 
-### Ejemplo de Uso en RepositoryImpl
-```dart
-@override
-DataResult<UserEntity> login(LoginParams params) async {
-  try {
-    final response = await _remoteDataSource.login(params.username, params.password);
+### 3.3 Prohibicion de Try-Catch en UseCases
+Los UseCases NUNCA deben tener bloques `try-catch`. Si hay un error, debe venir del Repositorio ya mapeado en un `DataState`.
 
-    if (response.error) {
-      return DataState.generalError(
-        userMessage: '${response.message} (ERR_AUTH01)',
-        technicalMessage: response.message,
-        module: 'AuthRepositoryImpl',
-        file: 'auth_repository_impl.dart',
-        line: '45',
-        stackTrace: 'Business Logic Error',
-      );
-    }
+## 4. Protocolo de Consumo en BLoC
 
-    return DataState.success(UserModel.fromJson(response.data).toEntity());
-    
-  } on DioException catch (e, stackTrace) {
-    return DataStateFactory.fromDioException(
-      e,
-      module: 'AuthRepositoryImpl',
-      file: 'auth_repository_impl.dart',
-      line: '55',
-      idError: 'AUTH02',
-      stackTrace: stackTrace.toString(),
-    );
-  } catch (e, stackTrace) {
-    return DataStateFactory.fromException(
-      message: e.toString(),
-      module: 'AuthRepositoryImpl',
-      file: 'auth_repository_impl.dart',
-      line: '62',
-      idError: 'AUTH03',
-      stackTrace: stackTrace.toString(),
-    );
-  }
-}
-```
+### 4.1 Mapeo Exhaustivo con .when()
+El BLoC debe usar `.when()` (no `.maybeWhen()`) para procesar el `DataResult`, manejando explicitamente:
+1. **success**: Emitir estado con la data de la entidad
+2. **dioError**: Emitir estado de error con detalles de red
+3. **generalError**: Emitir estado de error para fallos logicos
 
-## 1.2 Extension de Conveniencia y Propagacion (DataStateConvenience)
-⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Si vas a pedir la creacion de este archivo a un sub-agente, debes inyectar este bloque obligatoriamente.
+### 4.2 Uso de Extensiones en UI
+La UI NUNCA debe hacer casting manual (`state is SuccessState`). Siempre usar los getters de la extension del estado (`state.isLoading`, `state.items`, `state.errorMessage`).
 
-Esta extension añade metodos de utilidad para simplificar la lectura de estados en la UI (BLoCs) y permitir la transferencia de errores entre capas sin generar ruido tecnico innecesario.
+## 5. Reglas de Verificacion para el Auditor (Data State Edition)
 
-### Metodos de Verificacion y Acceso
-* isSuccess / isError: Verificadores rapidos de estado.
-* dataOrNull: Obtiene el valor de exito o null.
-* userMessageOrNull: Extrae el mensaje para el usuario si existe un error.
+### 5.1 Trazabilidad Completa
+1. **Generacion de Codigo**: Verificar que `data_state.dart` incluya `part 'data_state.freezed.dart'` (definicion en `blueprint-foundation`)
+2. **Campos Obligatorios**: Todo estado de error debe capturar `module`, `file`, `line`, `stackTrace` e `idError`
+3. **IDs Unicos**: Rechazar cualquier Repository con IDs genericos (`ERROR01`) o repetidos dentro del mismo archivo
 
-### Propagacion Quirurgica (propagateError)
-El metodo propagateError<R>() permite re-mapear un error de un tipo a otro (ej. de DataState<UserEntity> a DataState<HomeEntity>) preservando la trazabilidad original.
+### 5.2 Protocolo de Repository
+1. **Cobertura Try-Catch**: Todo metodo async debe estar envuelto en try-catch
+2. **Uso de Factory**: Los errores se mapean SOLO a traves de `DataStateFactory`, nunca con `DataState.error` manual
+3. **Validacion ResponseModel**: Siempre verificar `.error` antes de mapear data a entidad
 
-```dart
-extension DataStateConvenience<T> on DataState<T> {
-  bool get isSuccess => this is DataSuccess<T>;
-  bool get isError => this is DataDioError<T> || this is DataGeneralError<T>;
-  
-  T? get dataOrNull => isSuccess ? (this as DataSuccess<T>).data : null;
+### 5.3 Protocolo de UseCase
+1. **Sin Try-Catch**: Los UseCases no deben tener bloques try-catch
+2. **Propagacion**: Usar `propagateError()` en lugar de re-crear errores
+3. **Verificacion Previa**: Siempre validar `.isError` antes de acceder a `.dataOrNull!`
 
-  String? get userMessageOrNull => when(
-        success: (_) => null,
-        dioError: (_, userMsg, __, ___, ____, _____, ______) => userMsg,
-        generalError: (userMsg, _, __, ___, ____, _____) => userMsg,
-      );
-
-  DataState<R> propagateError<R>() {
-    return when(
-      success: (_) => throw StateError('propagateError() llamado en un exito.'),
-      dioError: (error, userMessage, technicalMessage, module, file, line, stackTrace) =>
-          DataState.dioError(
-        error: error,
-        userMessage: userMessage,
-        technicalMessage: technicalMessage,
-        module: module,
-        file: file,
-        line: line,
-        stackTrace: stackTrace,
-      ),
-      generalError: (userMessage, technicalMessage, module, file, line, stackTrace) =>
-          DataState.generalError(
-        userMessage: userMessage,
-        technicalMessage: technicalMessage,
-        module: module,
-        file: file,
-        line: line,
-        stackTrace: stackTrace,
-      ),
-    );
-  }
-}
-```
-
-## 2. Typedefs Globales (DataResult)
-⚠️ INYECCION OBLIGATORIA PARA SUB-AGENTES: Estos Typedefs y el VoidSuccess son inmutables. Pasalos al sub-agente explicitamente.
-
-Estandarizacion de las firmas de metodos en Repositorios y UseCases para asegurar un manejo de estados asincrono y consistente.
-
-```dart
-typedef DataResult<T> = Future<DataState<T>>;
-typedef DataResultVoid = Future<DataState<VoidSuccess>>;
-
-/// Clase especial para representar un exito sin datos de retorno
-class VoidSuccess { const VoidSuccess(); }
-```
-
-## 3. Reglas de Verificacion para el Auditor (Data State Edition)
-
-1. Generacion de Codigo: El Auditor debe verificar que todo archivo de DataState incluya la linea "part 'nombre_archivo.freezed.dart'".
-2. Trazabilidad: Todo estado de error (dioError o generalError) debe capturar y enviar obligatoriamente module, file, line, stackTrace e idError.
-3. IDs de Error: El Auditor debe rechazar cualquier Repository que use IDs de error genericos o repetidos.
+### 5.4 Protocolo de BLoC
+1. **Exhaustividad**: Usar `.when()` en lugar de `.maybeWhen()` para el DataResult
+2. **Extensiones**: La UI debe usar getters de extension, no casting manual

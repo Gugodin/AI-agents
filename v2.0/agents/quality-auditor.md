@@ -26,6 +26,9 @@ Carga los skills relevantes al área que estás auditando con la herramienta `sk
 - `bloc-specialist` → Criterios para BLoC, estados Freezed y extensiones.
 - `ui-specialist` → Criterios para UI modular y responsiva.
 - `dependency-manager` → Criterios de ciclo de vida en el inyector.
+- `router-specialist` → Criterios para navegación GoRouter, guards y deep linking.
+- `i18n-specialist` → Criterios para internacionalización con intl y archivos ARB.
+- `flutter-gen-specialist` → Criterios para gestión de assets con flutter_gen.
 
 ## Herramientas Disponibles
 - `skill` → Cargar manuales de referencia durante la auditoría (obligatorio antes de auditar).

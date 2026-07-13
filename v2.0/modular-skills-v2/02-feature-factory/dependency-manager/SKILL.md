@@ -24,8 +24,8 @@ Para evitar errores de "dependencia no encontrada", el registro debe seguir un o
 5. **BLoCs**: Requieren los UseCases.
 
 ### 1.3 Ciclo de Vida: Factory vs Singleton
-* **registerFactory**: Se usa para **Casos de uso**,**DataSources** y **Repositories**. Cada vez que se solicita, se crea una instancia nueva.
-* **registerSingleton**: Se usa para **Blocs** y **Helpers**.
+* **registerFactory**: Se usa para **Casos de uso**, **DataSources**, **Repositories** y **BLoCs de feature**. Cada vez que se solicita, se crea una instancia nueva. Esto garantiza la limpieza de estados al cerrar pantallas.
+* **registerSingleton**: Se usa EXCLUSIVAMENTE para **Helpers** (ConnectivityHelper, LocationHelper, etc.), **Clientes HTTP** (ExitusClient) y **BLoCs globales** (OverlayBloc, ConnectivityBloc). Los BLoCs de feature NUNCA deben ser Singleton.
 
 ### 1.4 Ejemplo de Implementacion de archivo principal
 ```dart
@@ -101,8 +101,8 @@ void auth_dependencies() {
     () => LogoutUseCase(getIt<AuthRepository>()),
   );
 
-  // Bloc auth
-  getIt.registerSingleton<AuthBloc>(AuthBloc(
+  // Bloc auth (registerFactory para BLoCs de feature)
+  getIt.registerFactory<AuthBloc>(() => AuthBloc(
     loginUseCase: getIt<LoginUseCase>(),
     biometricLoginUseCase: getIt<BiometricLoginUseCase>(),
     logoutUseCase: getIt<LogoutUseCase>(),
@@ -121,7 +121,9 @@ Uso de Interfaces: Se debe verificar que se registre la Interfaz y se provea la 
 
 ## 2.2 Validacion de BLoCs
 
-Prohibicion de Singletons en BLoCs: Es un ERROR CRITICO registrar un BLoC como Singleton. El Auditor debe obligar al uso de registerFactory para asegurar la limpieza de estados al cerrar pantallas.
+BLoCs de Feature como Factory: Es un ERROR CRITICO registrar un BLoC de feature como Singleton. El Auditor debe obligar al uso de registerFactory para asegurar la limpieza de estados al cerrar pantallas.
+
+Excepcion para BLoCs Globales: Los BLoCs que viven durante todo el ciclo de vida de la app (OverlayBloc, ConnectivityBloc, HomeOrchestrationBloc) pueden registrarse como Singleton en el archivo principal del injector. El Auditor debe verificar que estos BLoCs globales esten justificados y documentados.
 
 ## 2.3 Orden y Limpieza
 

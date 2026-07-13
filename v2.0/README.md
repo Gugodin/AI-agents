@@ -42,6 +42,9 @@ v2.0/
     │   │   └── use-case-addition/
     │   └── presentation/
     │       ├── bloc-specialist/
+    │       ├── flutter-gen-specialist/
+    │       ├── i18n-specialist/
+    │       ├── router-specialist/
     │       └── ui-specialist/
     └── 03-quality-assurance/
         └── code-reviewer/
@@ -117,6 +120,9 @@ ln -sf "$SKILLS_DIR/02-feature-factory/domain/use-case-addition"            ~/.c
 
 # Feature Factory — Presentation & Dependency
 ln -sf "$SKILLS_DIR/02-feature-factory/presentation/bloc-specialist" ~/.config/opencode/skills/bloc-specialist
+ln -sf "$SKILLS_DIR/02-feature-factory/presentation/flutter-gen-specialist" ~/.config/opencode/skills/flutter-gen-specialist
+ln -sf "$SKILLS_DIR/02-feature-factory/presentation/i18n-specialist" ~/.config/opencode/skills/i18n-specialist
+ln -sf "$SKILLS_DIR/02-feature-factory/presentation/router-specialist" ~/.config/opencode/skills/router-specialist
 ln -sf "$SKILLS_DIR/02-feature-factory/presentation/ui-specialist"   ~/.config/opencode/skills/ui-specialist
 ln -sf "$SKILLS_DIR/02-feature-factory/dependency-manager"           ~/.config/opencode/skills/dependency-manager
 
@@ -134,7 +140,7 @@ ls -la ~/.config/opencode/agents/
 ls -la ~/.config/opencode/skills/
 ```
 
-Deberías ver los 4 agentes y los 17 skills listados como symlinks (`->` apuntando al repositorio).
+Deberías ver los 4 agentes y los 20 skills listados como symlinks (`->` apuntando al repositorio).
 
 ### Paso 6: Reiniciar OpenCode
 

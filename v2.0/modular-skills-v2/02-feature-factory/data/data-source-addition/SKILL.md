@@ -76,11 +76,13 @@ class UserRemoteDataSource {
       // Transformamos los documentos en una lista de Mapas
       final data = querySnapshot.docs.map((doc) => doc.data()).toList();
 
-      // Retornamos el formato estandarizado
+      // Retornamos el formato estandarizado con los 5 campos obligatorios
       return ResponseModel(
         error: false,
         message: 'Usuarios obtenidos con exito',
         data: data,
+        code: 'FIRESTORE_SUCCESS',
+        description: 'Query ejecutada correctamente en collection users',
       );
     } catch (e) {
       // Si el SDK falla, lo notificamos a traves del ResponseModel
@@ -88,6 +90,8 @@ class UserRemoteDataSource {
         error: true,
         message: 'Error en Firestore: ${e.toString()}',
         data: null,
+        code: 'FIRESTORE_ERROR',
+        description: e.toString(),
       );
     }
   }

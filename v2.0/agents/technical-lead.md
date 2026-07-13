@@ -15,6 +15,9 @@ Al iniciar cualquier tarea, carga los skills relevantes con la herramienta `skil
 - `network-standards` → Estándares de comunicación con APIs y servicios externos.
 - `dependency-manager` → Reglas de ciclo de vida (Factory vs Singleton) y configuración de GetIt.
 - `scaffolding-dart` → Estructura de carpetas obligatoria del proyecto.
+- `router-specialist` → Navegación declarativa con GoRouter, guards y deep linking.
+- `i18n-specialist` → Internacionalización con intl y archivos ARB.
+- `flutter-gen-specialist` → Gestión de assets con tipos seguros y flutter_gen.
 
 ## Herramientas Disponibles
 - `skill` → Cargar manuales de arquitectura antes de tomar decisiones.

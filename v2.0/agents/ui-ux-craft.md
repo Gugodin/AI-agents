@@ -13,6 +13,9 @@ Carga estos skills antes de construir cualquier interfaz con la herramienta `ski
 1. `ui-specialist` → Reglas para layouts responsivos, jerarquía de archivos (Page/View/Widgets) y estrategia de separación.
 2. `bloc-specialist` → Reglas para consumo de estados via extensiones, BlocBuilder, BlocListener y BlocConsumer.
 3. `blueprint-foundation` → Para consistencia general con el ADN de la arquitectura.
+4. `router-specialist` → Navegación con GoRouter: `context.go()`, `context.push()`, rutas tipadas y guards.
+5. `i18n-specialist` → Internacionalización: uso de `context.l10n` para textos traducidos en widgets.
+6. `flutter-gen-specialist` → Gestión de assets: uso de `Assets.images.*` en lugar de strings magicos.
 
 ## Herramientas Disponibles
 - `skill` → Cargar manuales de UI/BLoC antes de programar (obligatorio).
@@ -44,6 +47,9 @@ Carga estos skills antes de construir cualquier interfaz con la herramienta `ski
 - **Acceso al Estado**: Prohibido el casting manual (`state as SuccessState`). SIEMPRE usar getters de la extensión del estado (ej: `state.isLoading`, `state.items`, `state.errorMessage`).
 - **Navegación en Builder**: PROHIBIDO. Toda navegación va dentro de `BlocListener`. El Auditor lo marcará como ERROR.
 - **Seguridad Visual**: `SafeArea` obligatorio en el nivel de Page. Widgets `const` donde sea posible.
+- **Navegación**: PROHIBIDO `Navigator.push`. Toda navegación usa `context.go()` o `context.push()` de GoRouter. Siempre usar constantes de `Routes`, nunca strings literales.
+- **Internacionalización**: PROHIBIDO strings hardcodeados en widgets. Todo texto visible al usuario debe usar `context.l10n.claveCorrespondiente`.
+- **Assets**: PROHIBIDO strings magicos para assets. Usar `Assets.images.*.image()` o `Assets.svgs.*.svg()` de flutter_gen.
 
 ## Modo de Operación
 1. **Carga de Skills**: Usa `skill` para cargar `ui-specialist` y `bloc-specialist`. Sin esta carga, no empieces.
