@@ -4,7 +4,7 @@
 
 ## La visión
 
-Construir apps móviles de producto (no demos) usando agentes como si fueran los miembros de un equipo: un líder técnico que orquesta, desarrolladores que escriben código, un diseñador UI/UX que construye interfaces, un QA que audita estándares, un integrador que maneja ramas y releases, y un planificador que preserva la memoria del proyecto entre sesiones.
+Construir apps móviles de producto (no demos) usando agentes como si fueran los miembros de un equipo: un entrevistador que arranca cada proyecto, un líder técnico que orquesta, desarrolladores que escriben código, un diseñador UI/UX que construye interfaces, un QA que audita estándares, un integrador que maneja ramas y releases, y un planificador que preserva la memoria del proyecto entre sesiones.
 
 Cada agente tiene un rol definido, un manual técnico (`SKILL.md`) que sigue sin desviarse, y restricciones innegociables. El trabajo fluye por **Git Flow simplificado** (`main` → `development` → `feature/*`) y por **sprints documentados con handoffs** — para que ninguna sesión pierda el hilo de lo que ya se construyó.
 
@@ -12,6 +12,7 @@ Cada agente tiene un rol definido, un manual técnico (`SKILL.md`) que sigue sin
 
 | Rol | Agente | Responsabilidad |
 |-----|--------|-----------------|
+| Entrevistador / Descubridor | `interviewer` | Primer agente del ciclo de proyecto nuevo. Recaba información del dominio con el usuario y genera la documentación completa (`docs/` + `AGENTS.md`). |
 | Líder Técnico / Orquestador | `technical-lead` | Analiza requerimientos, planifica y coordina al equipo. Dueño de la inyección de dependencias. |
 | Desarrollador de Código | `feature-developer` | Genera código de Dominio, Datos y BLoC bajo Clean Architecture. |
 | Diseñador UI/UX | `ui-ux-craft` | Construye interfaces modulares y reactivas consumiendo los estados del BLoC. |
@@ -19,7 +20,7 @@ Cada agente tiene un rol definido, un manual técnico (`SKILL.md`) que sigue sin
 | Integrador / Release Manager | `merge-manager` | Protocolos de integración (`feature-merge` y `release-merge`), gate checks, resolución de conflictos. |
 | Planificador / Cronista | `sprint-planner` | Planes de sprint, los 4 tipos de handoff, memoria del proyecto entre sesiones. |
 
-El equipo se completa con tres **disciplinas transversales** (skills): `merge-manager` (protocolo), `sprint-handoff` (templates) y `context-guardian` (disciplina de contexto: handoff-first al arranque y corte con handoff ante agotamiento).
+El equipo se completa con **cuatro disciplinas transversales** (skills): `merge-manager` (protocolo de integración), `sprint-handoff` (templates), `context-guardian` (disciplina de contexto: handoff-first al arranque y corte con handoff ante agotamiento), y `grilling` (refinamiento de planes/ADRs/ideas con entrevistas estructuradas — skill externa de Matt Pocock, MIT).
 
 ## Objetivos del equipo
 
@@ -50,8 +51,9 @@ El orden de desarrollo lo define **ADR-009**: Tlaxi primero, su repo es el templ
 |---------|-----------|--------|
 | `v1.0` | Primera iteración de skills monolíticas y agentes base. | Legado — conservada como referencia. |
 | `v2.0` | Equipo modular: 4 agentes + 20 skills categorizadas (`00-core-rules`, `01-project-setup`, `02-feature-factory`, `03-quality-assurance`). Setup con symlinks. | Superada. |
-| **`v2.1`** | **Equipo completo**: +`merge-manager`, +`sprint-planner`, +disciplina `context-guardian`. Flujo Git Flow + sprints con handoffs. Carpeta `04-delivery-workflow`. Carpeta interna normalizada a `skills/`. | **Vigente** |
+| `v2.1` | Equipo completo: +`merge-manager`, +`sprint-planner`, +disciplina `context-guardian`. Flujo Git Flow + sprints con handoffs. Carpeta `04-delivery-workflow`. Carpeta interna normalizada a `skills/`. | Superada. |
+| **`v2.2`** | **Ciclo de proyecto completo**: +agente `interviewer` (descubridor de producto), +skill `interviewer` (protocolo de entrevistas con árbol de decisiones), +skill `grilling` (externa, Matt Pocock, MIT) para stress-test de planes/ADRs. El ciclo va ahora desde "idea nueva" hasta "feature integrada". | **Vigente** |
 
-## Setup → [Ver documentación de v2.1](./v2.1/README.md)
+## Setup → [Ver documentación de v2.2](./v2.2/README.md)
 
-La versión vigente es `v2.1/`. Ahí está el README con la estructura detallada, comandos de symlinks, uso del equipo y mantenimiento.
+La versión vigente es `v2.2/`. Ahí está el README con la estructura detallada, comandos de symlinks, uso del equipo, instalación de skills externas y mantenimiento.
