@@ -11,7 +11,7 @@ Este manual define la disciplina de contexto para todos los agentes del equipo. 
 
 Antes de aceptar CUALQUIER tarea:
 
-1. **Sesión principal:** buscar el handoff más reciente del sprint activo (`docs/sprints/fase-NN-slug/handoffs/`, el más reciente del sprint). Si existe → leerlo y extraer: objetivo, estado, rama activa, qué quedó a medias, intentos fallidos, próximos pasos. Si no existe → arrancar de `AGENTS.md` + `plan.md` del sprint.
+1. **Sesión principal:** buscar el handoff más reciente del sprint activo (`docs/sprints/mvp-N/fase-NN-slug/handoffs/`, el más reciente del sprint). Si existe → leerlo y extraer: objetivo, estado, rama activa, qué quedó a medias, intentos fallidos, próximos pasos. Si no existe → arrancar de `AGENTS.md` + `plan.md` del sprint.
 2. **Subagentes:** si el prompt menciona estado previo, un handoff o una continuación y NO incluye su contenido → PEDIRLO antes de trabajar. Nunca asumir el estado previo. (Extiende el patrón anti-alucinación del skill `project-init` §5.)
 3. Tras leer el handoff: si algo del handoff contradice lo que ves en el repo, lo que ves en el repo manda (el handoff puede estar desactualizado) — anotar la divergencia y corregirla en el próximo handoff.
 4. Si no hay handoff Y no hay plan de sprint → es una sesión fundacional: trabajar normal, pero el handoff final es OBLIGATORIO (§3).
@@ -37,7 +37,7 @@ Cualquier señal crítica, o dos señales normales simultáneas → agotado. El 
 2. **Completar solo el paso atómico en curso.** Nunca cortar un archivo a medias: terminar la unidad (archivo/edición) y detenerse.
 3. **Generar el handoff de sesión** (tipo 1 del skill `sprint-handoff`):
    - Cargar el skill `sprint-handoff` ANTES de escribir (obligatorio — garantiza template y ubicación correctos).
-   - Ubicación: `docs/sprints/<sprint-activo>/handoffs/handoff-YYYY-MM-DD-<feature>.md`.
+    - Ubicación: `docs/sprints/mvp-N/<sprint-activo>/handoffs/handoff-YYYY-MM-DD-<feature>.md`.
    - Contenido mínimo: objetivo, estado (hecho vs verificado), rama activa y último commit, qué quedó a medias con archivo/línea, intentos fallidos, próximos pasos exactos.
 4. **Commit del handoff** (si se trabaja en un repo): `docs(handoff): <feature> — corte de sesión`. En la rama de la feature (o `development` si es sesión de infraestructura).
 5. **Recomendar al usuario:** "abre una sesión nueva — el handoff está listo con el contexto completo para retomar".

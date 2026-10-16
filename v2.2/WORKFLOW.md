@@ -23,7 +23,7 @@ flowchart TD
     DOCS --> F1["FASE 1 · Setup técnico<br/>technical-lead · Tab"]
     F1 --> REPO[["Repo Flutter<br/>scaffold · flavors · deps"]]
     REPO --> F2["FASE 2 · Abrir sprint<br/>@sprint-planner"]
-    F2 --> PLAN[["docs/sprints/fase-NN-slug/plan.md"]]
+    F2 --> PLAN[["docs/sprints/mvp-N/fase-NN-slug/plan.md"]]
     PLAN --> F3["FASE 3 · Feature<br/>technical-lead · Tab"]
     F3 --> PIPE["feature-developer → quality-auditor →<br/>ui-ux-craft → quality-auditor → inyector<br/>(rama feature/*)"]
     PIPE --> F4["FASE 4 · feature-merge<br/>@merge-manager · gates"]
@@ -48,7 +48,7 @@ flowchart TD
 |---|---|---|---|---|
 | Documentar una app nueva | `interviewer` | `Tab` (primario) | Ninguno | `docs/` + `AGENTS.md` + `docs/iteraciones/MVP-01..03` |
 | Setup técnico del repo ya documentado | `technical-lead` | `Tab` (primario) | Docs del `interviewer` | Repo Flutter: scaffold, flavors, deps, `build_runner` verde |
-| Abrir un sprint | `@sprint-planner` | `@` en el chat | `docs/iteraciones/MVP-NN-*.md` + repo scaffold | `docs/sprints/fase-NN-slug/plan.md` + `handoffs/` |
+| Abrir un sprint | `@sprint-planner` | `@` en el chat | `docs/iteraciones/MVP-NN-*.md` + repo scaffold | `docs/sprints/mvp-N/fase-NN-slug/plan.md` + `handoffs/` |
 | Desarrollar una feature completa | `technical-lead` | `Tab` (primario) | Docs + repo + `plan.md` del sprint + handoff-first | Feature auditada + inyección en `lib/injector/` |
 | Integrar una rama feature a `development` | `@merge-manager` | `@` en el chat | Feature terminada y auditada (`APPROVED`) | Merge `--no-ff` + handoff tipo 2 |
 | Cerrar un sprint | `@sprint-planner` | `@` en el chat | Todas las features del `plan.md` merged y done cumplido | Handoff tipo 3 + `plan.md` del siguiente sprint (JIT) |
@@ -118,7 +118,7 @@ phone-auth (RF-01, Flujo 01) y onboarding (RF-02, Flujo 02).
 
 **Qué hace:** carga `sprint-handoff` + `context-guardian`, lee el doc de iteración y la fase fuente, y crea el sprint siguiendo el template del skill (objetivo, features y ramas previstas, dependencias, criterios de done).
 
-**Qué produce:** `docs/sprints/fase-NN-slug/plan.md` + la carpeta `docs/sprints/fase-NN-slug/handoffs/`.
+**Qué produce:** `docs/sprints/mvp-N/fase-NN-slug/plan.md` + la carpeta `docs/sprints/mvp-N/fase-NN-slug/handoffs/`.
 
 **Regla JIT:** solo se abre el sprint **inmediato siguiente** — nunca se abren sprints lejanos por adelantado.
 
@@ -217,7 +217,7 @@ auditorías APPROVED, ramas merged vía merge-manager.
 
 ## 4. Los 4 tipos de handoff
 
-La memoria del proyecto vive en `docs/sprints/fase-NN-slug/handoffs/` con naming `handoff-YYYY-MM-DD-<nombre>.md` (nombre = feature o tema). El escritor por defecto es `sprint-planner`; cualquier otro agente escribe un handoff solo cuando está agotado o no tiene acceso a `Task` (regla de robustez de `context-guardian`).
+La memoria del proyecto vive en `docs/sprints/mvp-N/fase-NN-slug/handoffs/` con naming `handoff-YYYY-MM-DD-<nombre>.md` (nombre = feature o tema). El escritor por defecto es `sprint-planner`; cualquier otro agente escribe un handoff solo cuando está agotado o no tiene acceso a `Task` (regla de robustez de `context-guardian`).
 
 | Tipo | Nombre | Cuándo se dispara | Quién lo dispara |
 |---|---|---|---|
@@ -236,7 +236,7 @@ Reglas innegociables de los handoffs (skill `sprint-handoff`):
 - **Append-only:** jamás se borran ni reescriben; las correcciones van en handoffs nuevos.
 - **El más reciente manda:** si contradice al `plan.md`, el handoff refleja la realidad más fresca — y corregir el `plan.md` es trabajo del `sprint-planner`.
 
-**El sprint activo** se descubre leyendo `docs/sprints/*/plan.md`: es el primero (en orden numérico) con criterios de done sin cumplir.
+**El sprint activo** se descubre leyendo `docs/sprints/mvp-N/*/plan.md`: el MVP activo es el primero (en orden numérico) con criterios de done sin cumplidos en su doc de iteración; dentro de ese MVP, el sprint activo es el primero con criterios de done del `plan.md` sin cumplir.
 
 ## 5. Disciplinas transversales
 

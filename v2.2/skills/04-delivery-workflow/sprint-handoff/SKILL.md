@@ -9,10 +9,10 @@ Este manual define la estructura obligatoria de los handoffs y planes de sprint.
 
 ## 0. Reglas de estructura
 
-- **Ubicación:** `<proyecto>/docs/sprints/fase-NN-slug/handoffs/` (handoffs) y `<proyecto>/docs/sprints/fase-NN-slug/plan.md` (planes).
+- **Ubicación:** `<proyecto>/docs/sprints/mvp-N/fase-NN-slug/handoffs/` (handoffs) y `<proyecto>/docs/sprints/mvp-N/fase-NN-slug/plan.md` (planes).
 - **Naming handoff:** `handoff-YYYY-MM-DD-<nombre>.md` — nombre = feature o tema (ej. `handoff-2026-10-12-sistema-sprints.md`).
 - **Escritor por defecto:** el agente `sprint-planner`. Cualquier otro agente puede escribir un handoff de sesión si está agotado o no tiene acceso a `Task` (regla de robustez de `context-guardian`) — SIEMPRE siguiendo estos templates.
-- **Sprint activo:** se descubre leyendo `docs/sprints/*/plan.md` — el sprint activo es el primero (en orden numérico) con criterios de done sin cumplir.
+- **Sprint activo:** se descubre leyendo `docs/sprints/mvp-N/*/plan.md` — el MVP activo es el primero (en orden numérico) con criterios de done sin cumplidos en su doc de iteración; dentro de ese MVP, el sprint activo es el primero con criterios de done del `plan.md` sin cumplir.
 
 ## 1. Invariantes de TODO handoff
 
@@ -168,4 +168,4 @@ Este manual define la estructura obligatoria de los handoffs y planes de sprint.
 
 ## 8. Regla de descubrimiento para el retome
 
-Toda sesión nueva que abre trabajo en un proyecto con sprints debe leer, en orden: `AGENTS.md` → `docs/sprints/README.md` → `plan.md` del sprint activo → handoff más reciente del sprint activo. El handoff más reciente manda sobre el plan.md si difieren (el handoff refleja realidad más fresca; actualizar plan.md es tarea de sprint-planner).
+Toda sesión nueva que abre trabajo en un proyecto con sprints debe leer, en orden: `AGENTS.md` → `docs/sprints/README.md` → `plan.md` del sprint activo (en `docs/sprints/mvp-N/<sprint>/plan.md`) → handoff más reciente del sprint activo. El handoff más reciente manda sobre el plan.md si difieren (el handoff refleja realidad más fresca; actualizar plan.md es tarea de sprint-planner).
