@@ -29,6 +29,7 @@ Respecto a `v2.1`:
 
 ```
 v2.2/
+├── WORKFLOW.md                    # Flujo maestro de uso del equipo (idea → release)
 ├── agents/                        # Definiciones de agentes (formato OpenCode Markdown)
 │   ├── interviewer.md
 │   ├── technical-lead.md
@@ -183,6 +184,8 @@ Cierra y vuelve a abrir OpenCode. Los nuevos agentes estarán disponibles:
 
 ## Uso del Equipo
 
+> El flujo maestro completo — precondiciones, prompts de ejemplo, artefactos de salida y handoffs por fase — vive en **[WORKFLOW.md](./WORKFLOW.md)**. Esta sección es solo el resumen de arranque rápido.
+
 ### Ciclo Completo de un Proyecto Nuevo (Recomendado)
 
 El ciclo va desde la idea hasta la feature integrada:
@@ -198,60 +201,35 @@ El ciclo va desde la idea hasta la feature integrada:
 8. sprint-planner     → handoffs de consolidación
 ```
 
-#### Paso 1: Arrancar un Proyecto Nuevo
+### Arranque Rápido por Intención
 
-Activa el agente `interviewer` con `Tab` (es primary — dialoga contigo directamente):
+| Quiero... | Invoca | Cómo |
+|---|---|---|
+| Documentar una app nueva | `interviewer` | `Tab` (agente primario) |
+| Setup técnico del repo ya documentado | `technical-lead` | `Tab` (agente primario) |
+| Desarrollar una feature completa | `technical-lead` | `Tab` (agente primario) |
+| Abrir un sprint / generar handoffs | `@sprint-planner` | `@` en el chat |
+| Integrar una rama / liberar un MVP | `@merge-manager` | `@` en el chat |
+| Stress-test de planes/ADRs | skill `grilling` | Frase-disparador en el chat |
+
+Prompts mínimos de arranque:
 
 ```
-Quiero documentar una app nueva para el rubro de lavanderías de barrio.
-```
-
-El interviewer te entrevista en rondas, mapea tu árbol de decisiones, te da respuestas recomendadas, y al cerrar genera los `docs/` + `AGENTS.md` del proyecto.
-
-#### Paso 2: Flujo de Feature
-
-Una vez el proyecto está documentado, activa `technical-lead` con `Tab` y pide la feature completa:
-
-```
-Necesito crear la feature de inventario. El dominio son prendas por cliente con estado (recibida, en lavado, lista, entregada). El proyecto está en /ruta/al/proyecto.
-```
-
-El Technical Lead coordinará automáticamente a `feature-developer`, `quality-auditor` y `ui-ux-craft`.
-
-#### Paso 3: Integración y Release
-
-Cuando una feature esté lista:
-```
-@merge-manager Integra la rama feature/inventory a development con los gate checks.
-```
-
-Para cerrar un MVP y liberar a main:
-```
-@merge-manager Ejecuta el release-merge de development a main con tag v1.0.0.
-```
-
-#### Paso 4: Planificación de Sprints
-
-Al iniciar un sprint o al cerrar una sesión:
-```
+Quiero documentar una app nueva para el rubro de lavanderías de barrio.         ← interviewer (Tab)
+Necesito crear la feature de inventario. El dominio son prendas por cliente.   ← technical-lead (Tab)
+@merge-manager Ejecuta el feature-merge de feature/inventory a development.
 @sprint-planner Genera el plan del sprint fase-01-auth con las features phone-auth y onboarding.
-@sprint-planner Genera el handoff de consolidación tras el merge de feature/auth.
 ```
 
-#### Paso 5: Stress-test de Planes/ADRs (skill `grilling`)
+### Invocación Directa de Subagentes
 
-Para refinar cualquier plan o decisión antes de construir:
-```
-Estresa este ADR con la skill grilling — quiero asegurarme de que no hay suposiciones ocultas.
-```
-
-#### Invocación Directa de Subagentes
-
-También puedes invocar subagentes directamente mencionándolos con `@`:
+Los subagentes también se invocan directamente con `@` para tareas puntuales:
 ```
 @quality-auditor Revisa los archivos de la feature inventory en lib/features/inventory/
 @feature-developer Solo necesito el BLoC para la feature de perfil de usuario
 ```
+
+→ **[WORKFLOW.md](./WORKFLOW.md)** detalla las 7 fases del ciclo: precondiciones, qué decirle a cada agente, qué produce cada fase y cómo fluyen los 4 tipos de handoff.
 
 ## Instalación de Skills Externas (Terceros)
 
